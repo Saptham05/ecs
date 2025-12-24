@@ -88,7 +88,7 @@
     "ParameterValue": "web-platform"
   },
   {
-      "ParameterKey": "ExecutionRoleArn",
+      "ParameterKey": "ExistingExecutionRoleArn",
       "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
   },
   {
