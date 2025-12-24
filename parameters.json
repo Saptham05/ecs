@@ -1,0 +1,99 @@
+[
+  {
+    "ParameterKey": "TaskDefinitionFamily",
+    "ParameterValue": "my-web-app"
+  },
+  {
+    "ParameterKey": "LaunchType",
+    "ParameterValue": "FARGATE"
+  },
+  {
+    "ParameterKey": "TaskCpu",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "TaskMemory",
+    "ParameterValue": "1GB"
+  },
+  {
+    "ParameterKey": "NetworkMode",
+    "ParameterValue": "awsvpc"
+  },
+  {
+    "ParameterKey": "Container1Name",
+    "ParameterValue": "nginx-app"
+  },
+  {
+    "ParameterKey": "Container1Image",
+    "ParameterValue": "nginx:latest"
+  },
+  {
+    "ParameterKey": "Container1Cpu",
+    "ParameterValue": "256"
+  },
+  {
+    "ParameterKey": "Container1Memory",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container1MemoryReservation",
+    "ParameterValue": "256"
+  },
+  {
+    "ParameterKey": "Container1Port",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "EnableLogging",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "LogGroupName",
+    "ParameterValue": "/ecs/my-web-app"
+  },
+  {
+    "ParameterKey": "LogStreamPrefix",
+    "ParameterValue": "ecs"
+  },
+  {
+    "ParameterKey": "EnableHealthCheck",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "HealthCheckCommand",
+    "ParameterValue": "CMD-SHELL, curl -f http://localhost/ || exit 1"
+  },
+  {
+    "ParameterKey": "Environment1Key",
+    "ParameterValue": "APP_ENV"
+  },
+  {
+    "ParameterKey": "Environment1Value",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Environment2Key",
+    "ParameterValue": "PORT"
+  },
+  {
+    "ParameterKey": "Environment2Value",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "web-platform"
+  },
+  {
+      "ParameterKey": "ExecutionRoleArn",
+      "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "platform-team"
+  }
+]
+
