@@ -32,7 +32,7 @@ on:
         required: true
         type: choice
         options:
-          - ap-south-1
+          - us-east-1
           - us-east-2
           - us-west-1
           - us-west-2
@@ -121,21 +121,49 @@ jobs:
       - name: Validate CloudFormation Template
         run: |
           echo "🔍 Validating CloudFormation template..."
-          aws cloudformation validate-template \
+          
+          if aws cloudformation validate-template \
             --template-body file://${{ inputs.template_file }} \
-            --region ${{ inputs.aws_region }}
-          echo "✅ Template validation successful!"
+            --region ${{ inputs.aws_region }} > /tmp/validation-output.json; then
+            echo "✅ Template validation successful!"
+            
+            # Display validation details
+            echo ""
+            echo "Template Capabilities Required:"
+            cat /tmp/validation-output.json | jq -r '.Capabilities[]' 2>/dev/null || echo "  None"
+            
+            echo ""
+            echo "Number of Parameters: $(cat /tmp/validation-output.json | jq '.Parameters | length')"
+          else
+            echo "❌ Template validation failed!"
+            exit 1
+          fi
 
       - name: Display Template Summary
         run: |
           echo "==================================="
           echo "📊 TEMPLATE SUMMARY"
           echo "==================================="
+          
+          # Get template description (if exists)
+          DESCRIPTION=$(aws cloudformation validate-template \
+            --template-body file://${{ inputs.template_file }} \
+            --region ${{ inputs.aws_region }} \
+            --query 'Description' \
+            --output text 2>/dev/null || echo "No description")
+          
+          echo "Description: $DESCRIPTION"
+          echo ""
+          
+          # Display parameters
+          echo "Parameters:"
           aws cloudformation validate-template \
             --template-body file://${{ inputs.template_file }} \
             --region ${{ inputs.aws_region }} \
-            --query '[Description, Parameters[].{Parameter:ParameterKey, Default:DefaultValue}]' \
-            --output table
+            --query 'Parameters[].{Parameter:ParameterKey, Type:ParameterType, Default:DefaultValue}' \
+            --output table 2>/dev/null || echo "No parameters defined"
+          
+          echo "==================================="
 
   # ===========================================================================
   # JOB 2: CREATE STACK
