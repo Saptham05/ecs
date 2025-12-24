@@ -1,0 +1,829 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Comprehensive and Reusable ECS Task Definition with All Components'
+
+# ==============================================================================
+# PARAMETERS - Customize your task definition
+# ==============================================================================
+Parameters:
+  # ============================================================================
+  # TASK DEFINITION BASICS
+  # ============================================================================
+  TaskDefinitionFamily:
+    Type: String
+    Description: Name/Family for the task definition
+    Default: my-application-task
+
+  LaunchType:
+    Type: String
+    Description: Launch type compatibility
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - EC2
+      - EXTERNAL
+
+  # ============================================================================
+  # TASK RESOURCES
+  # ============================================================================
+  TaskCpu:
+    Type: String
+    Description: Task CPU units (256, 512, 1024, 2048, 4096, 8192, 16384)
+    Default: '512'
+    AllowedValues:
+      - '256'
+      - '512'
+      - '1024'
+      - '2048'
+      - '4096'
+      - '8192'
+      - '16384'
+
+  TaskMemory:
+    Type: String
+    Description: Task memory in MB or GB (e.g., 512, 1GB, 2GB)
+    Default: '1GB'
+
+  # ============================================================================
+  # IAM ROLES
+  # ============================================================================
+  CreateTaskRole:
+    Type: String
+    Description: Create a new task role?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingTaskRoleArn:
+    Type: String
+    Description: Existing Task Role ARN (leave blank to create new)
+    Default: ''
+
+  CreateExecutionRole:
+    Type: String
+    Description: Create a new execution role?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingExecutionRoleArn:
+    Type: String
+    Description: Existing Execution Role ARN (leave blank to create new)
+    Default: ''
+
+  # ============================================================================
+  # NETWORK CONFIGURATION
+  # ============================================================================
+  NetworkMode:
+    Type: String
+    Description: Docker networking mode
+    Default: awsvpc
+    AllowedValues:
+      - awsvpc
+      - bridge
+      - host
+      - none
+
+  # ============================================================================
+  # RUNTIME PLATFORM
+  # ============================================================================
+  OperatingSystem:
+    Type: String
+    Description: Operating system family
+    Default: LINUX
+    AllowedValues:
+      - LINUX
+      - WINDOWS_SERVER_2019_FULL
+      - WINDOWS_SERVER_2019_CORE
+      - WINDOWS_SERVER_2022_FULL
+      - WINDOWS_SERVER_2022_CORE
+      - WINDOWS_SERVER_2025_FULL
+      - WINDOWS_SERVER_2025_CORE
+
+  CpuArchitecture:
+    Type: String
+    Description: CPU architecture
+    Default: X86_64
+    AllowedValues:
+      - X86_64
+      - ARM64
+
+  # ============================================================================
+  # CONTAINER 1 - PRIMARY CONTAINER
+  # ============================================================================
+  Container1Name:
+    Type: String
+    Description: Primary container name
+    Default: app-container
+
+  Container1Image:
+    Type: String
+    Description: Docker image URI for primary container
+    Default: nginx:latest
+
+  Container1Cpu:
+    Type: Number
+    Description: CPU units for primary container
+    Default: 256
+    MinValue: 0
+
+  Container1Memory:
+    Type: Number
+    Description: Memory in MB for primary container (hard limit)
+    Default: 512
+    MinValue: 4
+
+  Container1MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB (soft limit)
+    Default: 256
+    MinValue: 0
+
+  Container1Essential:
+    Type: String
+    Description: Is this container essential?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container1Port:
+    Type: Number
+    Description: Container port to expose
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+
+  Container1Protocol:
+    Type: String
+    Description: Port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  # ============================================================================
+  # LOGGING CONFIGURATION
+  # ============================================================================
+  EnableLogging:
+    Type: String
+    Description: Enable CloudWatch logging?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group name
+    Default: /ecs/my-application
+
+  LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix
+    Default: ecs
+
+  LogRetentionDays:
+    Type: Number
+    Description: Log retention in days
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+
+  LogDriverMode:
+    Type: String
+    Description: Log driver mode (non-blocking recommended for availability)
+    Default: non-blocking
+    AllowedValues:
+      - blocking
+      - non-blocking
+
+  # ============================================================================
+  # HEALTH CHECK
+  # ============================================================================
+  EnableHealthCheck:
+    Type: String
+    Description: Enable container health check?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  HealthCheckCommand:
+    Type: String
+    Description: Health check command (e.g., CMD-SHELL, curl -f http://localhost/ || exit 1)
+    Default: 'CMD-SHELL, curl -f http://localhost/ || exit 1'
+
+  HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  # ============================================================================
+  # ENVIRONMENT VARIABLES
+  # ============================================================================
+  Environment1Key:
+    Type: String
+    Description: Environment variable 1 key
+    Default: ''
+
+  Environment1Value:
+    Type: String
+    Description: Environment variable 1 value
+    Default: ''
+
+  Environment2Key:
+    Type: String
+    Description: Environment variable 2 key
+    Default: ''
+
+  Environment2Value:
+    Type: String
+    Description: Environment variable 2 value
+    Default: ''
+
+  Environment3Key:
+    Type: String
+    Description: Environment variable 3 key
+    Default: ''
+
+  Environment3Value:
+    Type: String
+    Description: Environment variable 3 value
+    Default: ''
+
+  # ============================================================================
+  # SECRETS (from Secrets Manager or Parameter Store)
+  # ============================================================================
+  Secret1Name:
+    Type: String
+    Description: Secret 1 environment variable name
+    Default: ''
+
+  Secret1ValueFrom:
+    Type: String
+    Description: Secret 1 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret2Name:
+    Type: String
+    Description: Secret 2 environment variable name
+    Default: ''
+
+  Secret2ValueFrom:
+    Type: String
+    Description: Secret 2 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  # ============================================================================
+  # VOLUMES - EFS
+  # ============================================================================
+  EnableEfsVolume:
+    Type: String
+    Description: Enable EFS volume?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EfsVolumeId:
+    Type: String
+    Description: EFS File System ID
+    Default: ''
+
+  EfsRootDirectory:
+    Type: String
+    Description: EFS root directory to mount
+    Default: '/'
+
+  EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS
+    Default: '/mnt/efs'
+
+  EfsTransitEncryption:
+    Type: String
+    Description: Enable EFS transit encryption?
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
+  # ============================================================================
+  # EPHEMERAL STORAGE (Fargate)
+  # ============================================================================
+  EphemeralStorageSize:
+    Type: Number
+    Description: Ephemeral storage in GB (20-200, default is 20)
+    Default: 20
+    MinValue: 20
+    MaxValue: 200
+
+  # ============================================================================
+  # CONTAINER 2 - SIDECAR (OPTIONAL)
+  # ============================================================================
+  EnableSidecar:
+    Type: String
+    Description: Enable sidecar container?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  SidecarName:
+    Type: String
+    Description: Sidecar container name
+    Default: sidecar-container
+
+  SidecarImage:
+    Type: String
+    Description: Docker image URI for sidecar
+    Default: amazon/aws-for-fluent-bit:latest
+
+  SidecarCpu:
+    Type: Number
+    Description: CPU units for sidecar
+    Default: 128
+    MinValue: 0
+
+  SidecarMemory:
+    Type: Number
+    Description: Memory in MB for sidecar
+    Default: 256
+    MinValue: 4
+
+  SidecarEssential:
+    Type: String
+    Description: Is sidecar essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  # ============================================================================
+  # RESOURCE LIMITS
+  # ============================================================================
+  NoFileUlimitSoft:
+    Type: Number
+    Description: Soft limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  NoFileUlimitHard:
+    Type: Number
+    Description: Hard limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  # ============================================================================
+  # TAGS
+  # ============================================================================
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+  Project:
+    Type: String
+    Description: Project name
+    Default: my-project
+
+  Owner:
+    Type: String
+    Description: Owner/Team name
+    Default: platform-team
+
+# ==============================================================================
+# CONDITIONS
+# ==============================================================================
+Conditions:
+  CreateNewTaskRole: !Equals [!Ref CreateTaskRole, 'true']
+  CreateNewExecutionRole: !Equals [!Ref CreateExecutionRole, 'true']
+  UseExistingTaskRole: !Not [!Equals [!Ref ExistingTaskRoleArn, '']]
+  UseExistingExecutionRole: !Not [!Equals [!Ref ExistingExecutionRoleArn, '']]
+  EnableLoggingCondition: !Equals [!Ref EnableLogging, 'true']
+  EnableHealthCheckCondition: !Equals [!Ref EnableHealthCheck, 'true']
+  AddEnvironment1: !Not [!Equals [!Ref Environment1Key, '']]
+  AddEnvironment2: !Not [!Equals [!Ref Environment2Key, '']]
+  AddEnvironment3: !Not [!Equals [!Ref Environment3Key, '']]
+  AddSecret1: !Not [!Equals [!Ref Secret1Name, '']]
+  AddSecret2: !Not [!Equals [!Ref Secret2Name, '']]
+  EnableEfsVolumeCondition: !Equals [!Ref EnableEfsVolume, 'true']
+  EnableSidecarCondition: !Equals [!Ref EnableSidecar, 'true']
+  IsFargate: !Equals [!Ref LaunchType, 'FARGATE']
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+Resources:
+  # ============================================================================
+  # CLOUDWATCH LOG GROUP
+  # ============================================================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableLoggingCondition
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ============================================================================
+  # IAM ROLES - TASK ROLE
+  # ============================================================================
+  TaskRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewTaskRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Add your custom policies here
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: TaskRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Example: S3 access
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: '*'
+              # Example: DynamoDB access
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-task-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM ROLES - EXECUTION ROLE
+  # ============================================================================
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewExecutionRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # ECR access
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource: '*'
+              # Secrets Manager access (if using secrets)
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+              # SSM Parameter Store access (if using SSM parameters)
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # TASK DEFINITION
+  # ============================================================================
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      
+      # Launch Type
+      RequiresCompatibilities:
+        - !Ref LaunchType
+      
+      # Network Mode
+      NetworkMode: !Ref NetworkMode
+      
+      # Task Resources
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      
+      # Runtime Platform
+      RuntimePlatform:
+        OperatingSystemFamily: !Ref OperatingSystem
+        CpuArchitecture: !Ref CpuArchitecture
+      
+      # IAM Roles
+      TaskRoleArn: !If
+        - CreateNewTaskRole
+        - !GetAtt TaskRole.Arn
+        - !If
+          - UseExistingTaskRole
+          - !Ref ExistingTaskRoleArn
+          - !Ref AWS::NoValue
+      
+      ExecutionRoleArn: !If
+        - CreateNewExecutionRole
+        - !GetAtt ExecutionRole.Arn
+        - !If
+          - UseExistingExecutionRole
+          - !Ref ExistingExecutionRoleArn
+          - !Ref AWS::NoValue
+      
+      # Ephemeral Storage (Fargate only)
+      EphemeralStorage:
+        !If
+          - IsFargate
+          - SizeInGiB: !Ref EphemeralStorageSize
+          - !Ref AWS::NoValue
+      
+      # Container Definitions
+      ContainerDefinitions:
+        # PRIMARY CONTAINER
+        - Name: !Ref Container1Name
+          Image: !Ref Container1Image
+          Cpu: !Ref Container1Cpu
+          Memory: !Ref Container1Memory
+          MemoryReservation: !Ref Container1MemoryReservation
+          Essential: !Ref Container1Essential
+          
+          # Port Mappings
+          PortMappings:
+            - ContainerPort: !Ref Container1Port
+              Protocol: !Ref Container1Protocol
+              Name: !Sub '${Container1Name}-port'
+          
+          # Environment Variables
+          Environment:
+            !If
+              - AddEnvironment1
+              - - !If
+                  - AddEnvironment1
+                  - Name: !Ref Environment1Key
+                    Value: !Ref Environment1Value
+                  - !Ref AWS::NoValue
+                - !If
+                  - AddEnvironment2
+                  - Name: !Ref Environment2Key
+                    Value: !Ref Environment2Value
+                  - !Ref AWS::NoValue
+                - !If
+                  - AddEnvironment3
+                  - Name: !Ref Environment3Key
+                    Value: !Ref Environment3Value
+                  - !Ref AWS::NoValue
+              - !Ref AWS::NoValue
+          
+          # Secrets
+          Secrets:
+            !If
+              - AddSecret1
+              - - !If
+                  - AddSecret1
+                  - Name: !Ref Secret1Name
+                    ValueFrom: !Ref Secret1ValueFrom
+                  - !Ref AWS::NoValue
+                - !If
+                  - AddSecret2
+                  - Name: !Ref Secret2Name
+                    ValueFrom: !Ref Secret2ValueFrom
+                  - !Ref AWS::NoValue
+              - !Ref AWS::NoValue
+          
+          # Health Check
+          HealthCheck:
+            !If
+              - EnableHealthCheckCondition
+              - Command: !Split [',', !Ref HealthCheckCommand]
+                Interval: !Ref HealthCheckInterval
+                Timeout: !Ref HealthCheckTimeout
+                Retries: !Ref HealthCheckRetries
+                StartPeriod: !Ref HealthCheckStartPeriod
+              - !Ref AWS::NoValue
+          
+          # Logging
+          LogConfiguration:
+            !If
+              - EnableLoggingCondition
+              - LogDriver: awslogs
+                Options:
+                  awslogs-group: !Ref LogGroupName
+                  awslogs-region: !Ref AWS::Region
+                  awslogs-stream-prefix: !Ref LogStreamPrefix
+                  mode: !Ref LogDriverMode
+                  max-buffer-size: 25m
+              - !Ref AWS::NoValue
+          
+          # Mount Points (if EFS enabled)
+          MountPoints:
+            !If
+              - EnableEfsVolumeCondition
+              - - SourceVolume: efs-volume
+                  ContainerPath: !Ref EfsMountPath
+                  ReadOnly: false
+              - !Ref AWS::NoValue
+          
+          # Resource Limits
+          Ulimits:
+            - Name: nofile
+              SoftLimit: !Ref NoFileUlimitSoft
+              HardLimit: !Ref NoFileUlimitHard
+          
+          # Linux Parameters
+          LinuxParameters:
+            InitProcessEnabled: true
+          
+          # Docker Labels
+          DockerLabels:
+            com.example.environment: !Ref Environment
+            com.example.project: !Ref Project
+        
+        # SIDECAR CONTAINER (OPTIONAL)
+        - !If
+          - EnableSidecarCondition
+          - Name: !Ref SidecarName
+            Image: !Ref SidecarImage
+            Cpu: !Ref SidecarCpu
+            Memory: !Ref SidecarMemory
+            Essential: !Ref SidecarEssential
+            
+            # Sidecar Logging
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Sub '${LogStreamPrefix}-sidecar'
+                - !Ref AWS::NoValue
+            
+            # Container Dependency (start after main container)
+            DependsOn:
+              - ContainerName: !Ref Container1Name
+                Condition: START
+          - !Ref AWS::NoValue
+      
+      # Volumes
+      Volumes:
+        !If
+          - EnableEfsVolumeCondition
+          - - Name: efs-volume
+              EFSVolumeConfiguration:
+                FilesystemId: !Ref EfsVolumeId
+                RootDirectory: !Ref EfsRootDirectory
+                TransitEncryption: !Ref EfsTransitEncryption
+          - !Ref AWS::NoValue
+      
+      # Tags
+      Tags:
+        - Key: Name
+          Value: !Ref TaskDefinitionFamily
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  TaskDefinitionArn:
+    Description: ARN of the Task Definition
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionArn'
+
+  TaskDefinitionFamily:
+    Description: Task Definition Family Name
+    Value: !Ref TaskDefinitionFamily
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionFamily'
+
+  TaskRoleArn:
+    Description: ARN of the Task Role
+    Value: !If
+      - CreateNewTaskRole
+      - !GetAtt TaskRole.Arn
+      - !If
+        - UseExistingTaskRole
+        - !Ref ExistingTaskRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskRoleArn'
+
+  ExecutionRoleArn:
+    Description: ARN of the Execution Role
+    Value: !If
+      - CreateNewExecutionRole
+      - !GetAtt ExecutionRole.Arn
+      - !If
+        - UseExistingExecutionRole
+        - !Ref ExistingExecutionRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
+
+  LogGroupName:
+    Condition: EnableLoggingCondition
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroupName
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
+
+  PrimaryContainerName:
+    Description: Primary Container Name
+    Value: !Ref Container1Name
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryContainerName'
+
+  PrimaryContainerPort:
+    Description: Primary Container Port
+    Value: !Ref Container1Port
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryContainerPort'
+
