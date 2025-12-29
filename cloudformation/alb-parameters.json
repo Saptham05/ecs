@@ -9,11 +9,11 @@
   },
   {
     "ParameterKey": "VpcId",
-    "ParameterValue": "vpc-xxxxxxxxxxxxxxxxx"
+    "ParameterValue": "vpc-00a206fcf84a85e18"
   },
   {
     "ParameterKey": "SubnetIds",
-    "ParameterValue": "subnet-xxxxxxxxxxxxxxxxx,subnet-yyyyyyyyyyyyyyyyy"
+    "ParameterValue": "subnet-0ce5641e204715a4e,subnet-07d525713650b6f8a"
   },
   {
     "ParameterKey": "ALBScheme",
