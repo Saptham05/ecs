@@ -1,486 +1,553 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Reusable Application Load Balancer CloudFormation Template'
+name: ALB CloudFormation Pipeline
 
-Parameters:
-  # Environment and Naming
-  EnvironmentName:
-    Type: String
-    Description: Environment name (e.g., dev, staging, prod)
-    AllowedValues:
-      - dev
-      - staging
-      - prod
-    Default: dev
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create
+          - update
+          - delete
+          - validate
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      stack_name:
+        description: 'CloudFormation stack name'
+        required: false
+        type: string
 
-  ApplicationName:
-    Type: String
-    Description: Application name for resource naming
-    MinLength: 1
-    MaxLength: 50
+env:
+  AWS_REGION: ap-south-1
+  TEMPLATE_FILE: cloudformation/alb-cft.yaml
+  PARAMETER_FILE: cloudformation/alb-parameters.json
+  
+jobs:
+  # Job 1: Validate CloudFormation Template
+  validate:
+    name: Validate CloudFormation Template
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-ALB-Validate
+      
+      - name: Validate CloudFormation Template
+        run: |
+          echo "🔍 Validating CloudFormation template..."
+          aws cloudformation validate-template \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --region ${{ env.AWS_REGION }}
+          echo "✅ Template validation successful!"
+      
+      - name: Install cfn-lint
+        run: |
+          pip install cfn-lint
+      
+      - name: Lint CloudFormation Template
+        run: |
+          echo "🔍 Linting CloudFormation template..."
+          cfn-lint ${{ env.TEMPLATE_FILE }}
+          echo "✅ Template linting successful!"
 
-  # VPC and Network Configuration
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID where ALB will be deployed
+  # Job 2: Setup Deployment Configuration
+  setup:
+    name: Setup Deployment Configuration
+    runs-on: ubuntu-latest
+    needs: validate
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      action: ${{ steps.set-action.outputs.action }}
+      stack_name: ${{ steps.set-stack.outputs.stack_name }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set Environment
+        id: set-env
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          echo "environment=${ENVIRONMENT}" >> $GITHUB_OUTPUT
+          echo "📌 Environment: ${ENVIRONMENT}"
+      
+      - name: Set Action
+        id: set-action
+        run: |
+          ACTION="${{ github.event.inputs.action }}"
+          echo "action=${ACTION}" >> $GITHUB_OUTPUT
+          echo "📌 Action: ${ACTION}"
+      
+      - name: Set Stack Name
+        id: set-stack
+        run: |
+          if [[ -n "${{ github.event.inputs.stack_name }}" ]]; then
+            STACK_NAME="${{ github.event.inputs.stack_name }}"
+          else
+            STACK_NAME="alb-${{ github.event.inputs.environment }}"
+          fi
+          echo "stack_name=${STACK_NAME}" >> $GITHUB_OUTPUT
+          echo "📌 Stack Name: ${STACK_NAME}"
 
-  SubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: List of subnet IDs for ALB (minimum 2 subnets in different AZs)
+  # Job 3: Create or Update Stack
+  deploy:
+    name: Deploy ALB Stack
+    runs-on: ubuntu-latest
+    needs: setup
+    if: |
+      needs.setup.outputs.action == 'create' || 
+      needs.setup.outputs.action == 'update' || 
+      needs.setup.outputs.action == 'create-or-update'
+    environment: ${{ needs.setup.outputs.environment }}
+    
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-ALB-Deploy
+      
+      - name: Verify AWS Identity
+        run: |
+          echo "🔐 Verifying AWS Identity..."
+          aws sts get-caller-identity
+      
+      - name: Check if Stack Exists
+        id: check-stack
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} 2>&1 | grep -q "does not exist"; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "📝 Stack does not exist - will create new stack"
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "📝 Stack exists - will update stack"
+          fi
+      
+      - name: Create CloudFormation Stack
+        if: steps.check-stack.outputs.exists == 'false'
+        run: |
+          echo "🚀 Creating CloudFormation stack: ${{ needs.setup.outputs.stack_name }}"
+          aws cloudformation create-stack \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --parameters file://${{ env.PARAMETER_FILE }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --tags \
+              Key=Environment,Value=${{ needs.setup.outputs.environment }} \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=CommitSHA,Value=${{ github.sha }} \
+              Key=DeployedBy,Value=${{ github.actor }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for stack creation to complete..."
+          aws cloudformation wait stack-create-complete \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Stack created successfully!"
+      
+      - name: Update CloudFormation Stack
+        if: steps.check-stack.outputs.exists == 'true'
+        run: |
+          echo "🔄 Updating CloudFormation stack: ${{ needs.setup.outputs.stack_name }}"
+          
+          # Create change set
+          CHANGE_SET_NAME="${{ needs.setup.outputs.stack_name }}-$(date +%Y%m%d%H%M%S)"
+          
+          aws cloudformation create-change-set \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --change-set-name ${CHANGE_SET_NAME} \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --parameters file://${{ env.PARAMETER_FILE }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --tags \
+              Key=Environment,Value=${{ needs.setup.outputs.environment }} \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=CommitSHA,Value=${{ github.sha }} \
+              Key=DeployedBy,Value=${{ github.actor }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for change set creation..."
+          aws cloudformation wait change-set-create-complete \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --change-set-name ${CHANGE_SET_NAME} \
+            --region ${{ env.AWS_REGION }} || {
+            # Check if change set failed due to no changes
+            STATUS=$(aws cloudformation describe-change-set \
+              --stack-name ${{ needs.setup.outputs.stack_name }} \
+              --change-set-name ${CHANGE_SET_NAME} \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Status' --output text)
+            
+            if [[ "$STATUS" == "FAILED" ]]; then
+              REASON=$(aws cloudformation describe-change-set \
+                --stack-name ${{ needs.setup.outputs.stack_name }} \
+                --change-set-name ${CHANGE_SET_NAME} \
+                --region ${{ env.AWS_REGION }} \
+                --query 'StatusReason' --output text)
+              
+              if [[ "$REASON" == *"didn't contain changes"* ]]; then
+                echo "ℹ️  No changes detected - stack is already up to date"
+                aws cloudformation delete-change-set \
+                  --stack-name ${{ needs.setup.outputs.stack_name }} \
+                  --change-set-name ${CHANGE_SET_NAME} \
+                  --region ${{ env.AWS_REGION }}
+                exit 0
+              else
+                echo "❌ Change set creation failed: $REASON"
+                exit 1
+              fi
+            fi
+          }
+          
+          # Describe changes
+          echo "📋 Change Set Details:"
+          aws cloudformation describe-change-set \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --change-set-name ${CHANGE_SET_NAME} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Changes[*].[ResourceChange.Action,ResourceChange.LogicalResourceId,ResourceChange.ResourceType,ResourceChange.Replacement]' \
+            --output table
+          
+          # Execute change set
+          echo "🚀 Executing change set..."
+          aws cloudformation execute-change-set \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --change-set-name ${CHANGE_SET_NAME} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for stack update to complete..."
+          aws cloudformation wait stack-update-complete \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Stack updated successfully!"
+      
+      - name: Get Stack Outputs
+        run: |
+          echo "📊 Stack Outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[*].[OutputKey,OutputValue,Description]' \
+            --output table
+      
+      - name: Get ALB Details
+        id: alb-details
+        run: |
+          # Get ALB DNS Name
+          ALB_DNS=$(aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ALBDNSName`].OutputValue' \
+            --output text)
+          echo "dns_name=${ALB_DNS}" >> $GITHUB_OUTPUT
+          echo "🌐 ALB DNS Name: ${ALB_DNS}"
+          
+          # Get ALB ARN
+          ALB_ARN=$(aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ALBArn`].OutputValue' \
+            --output text)
+          echo "arn=${ALB_ARN}" >> $GITHUB_OUTPUT
+          echo "🔗 ALB ARN: ${ALB_ARN}"
+          
+          # Get Target Group ARN
+          TG_ARN=$(aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`TargetGroupArn`].OutputValue' \
+            --output text)
+          echo "target_group_arn=${TG_ARN}" >> $GITHUB_OUTPUT
+          echo "🎯 Target Group ARN: ${TG_ARN}"
+      
+      - name: Create Deployment Summary
+        run: |
+          echo "## 🚀 ALB Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** ${{ needs.setup.outputs.stack_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ needs.setup.outputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 ALB Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS Name:** ${{ steps.alb-details.outputs.dns_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ALB ARN:** ${{ steps.alb-details.outputs.arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Group ARN:** ${{ steps.alb-details.outputs.target_group_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Deployment completed successfully!**" >> $GITHUB_STEP_SUMMARY
 
-  # ALB Configuration
-  ALBScheme:
-    Type: String
-    Description: ALB scheme (internet-facing or internal)
-    AllowedValues:
-      - internet-facing
-      - internal
-    Default: internet-facing
+  # Job 4: Delete Stack
+  delete:
+    name: Delete ALB Stack
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.action == 'delete'
+    environment: ${{ needs.setup.outputs.environment }}
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-ALB-Delete
+      
+      - name: Verify AWS Identity
+        run: |
+          echo "🔐 Verifying AWS Identity..."
+          aws sts get-caller-identity
+      
+      - name: Check if Stack Exists
+        id: check-stack
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} 2>&1 | grep -q "does not exist"; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  Stack does not exist - nothing to delete"
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "📝 Stack exists - proceeding with deletion"
+          fi
+      
+      - name: Check Deletion Protection
+        if: steps.check-stack.outputs.exists == 'true'
+        id: check-protection
+        run: |
+          echo "🔍 Checking if deletion protection is enabled..."
+          DELETION_PROTECTION=$(aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].EnableTerminationProtection' \
+            --output text 2>&1 || echo "false")
+          
+          if [[ "$DELETION_PROTECTION" == "True" ]]; then
+            echo "⚠️  WARNING: Deletion protection is enabled!"
+            echo "Disabling deletion protection..."
+            aws cloudformation update-termination-protection \
+              --no-enable-termination-protection \
+              --stack-name ${{ needs.setup.outputs.stack_name }} \
+              --region ${{ env.AWS_REGION }}
+            echo "✅ Deletion protection disabled"
+          else
+            echo "✅ No deletion protection - safe to delete"
+          fi
+      
+      - name: Get Stack Resources Before Deletion
+        if: steps.check-stack.outputs.exists == 'true'
+        run: |
+          echo "📋 Stack Resources to be deleted:"
+          aws cloudformation describe-stack-resources \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackResources[*].[LogicalResourceId,ResourceType,PhysicalResourceId]' \
+            --output table
+      
+      - name: Confirm Deletion
+        if: steps.check-stack.outputs.exists == 'true'
+        run: |
+          echo "⚠️  WARNING: You are about to DELETE the following stack:"
+          echo "Stack Name: ${{ needs.setup.outputs.stack_name }}"
+          echo "Environment: ${{ needs.setup.outputs.environment }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo ""
+          echo "This action will delete all resources in the stack!"
+          echo "Proceeding with deletion in 5 seconds..."
+          sleep 5
+      
+      - name: Delete CloudFormation Stack
+        if: steps.check-stack.outputs.exists == 'true'
+        run: |
+          echo "🗑️  Deleting CloudFormation stack: ${{ needs.setup.outputs.stack_name }}"
+          aws cloudformation delete-stack \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Stack deleted successfully!"
+      
+      - name: Verify Deletion
+        if: steps.check-stack.outputs.exists == 'true'
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} 2>&1 | grep -q "does not exist"; then
+            echo "✅ Verified: Stack has been deleted"
+          else
+            echo "⚠️  Warning: Stack still exists"
+            exit 1
+          fi
+      
+      - name: Create Deletion Summary
+        run: |
+          echo "## 🗑️ ALB Stack Deletion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** ${{ needs.setup.outputs.stack_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.check-stack.outputs.exists }}" == "true" ]]; then
+            echo "✅ **Stack deleted successfully!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️  **Stack did not exist - no action taken**" >> $GITHUB_STEP_SUMMARY
+          fi
 
-  ALBType:
-    Type: String
-    Description: ALB IP address type
-    AllowedValues:
-      - ipv4
-      - dualstack
-    Default: ipv4
+  # Job 5: Drift Detection (only after successful deployment)
+  drift-detection:
+    name: Detect Stack Drift
+    runs-on: ubuntu-latest
+    needs: [setup, deploy]
+    if: |
+      always() && 
+      (needs.setup.outputs.action == 'create' || 
+       needs.setup.outputs.action == 'update' || 
+       needs.setup.outputs.action == 'create-or-update') &&
+      needs.deploy.result == 'success'
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-ALB-Drift
+      
+      - name: Detect Drift
+        run: |
+          echo "🔍 Starting drift detection..."
+          DRIFT_ID=$(aws cloudformation detect-stack-drift \
+            --stack-name ${{ needs.setup.outputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackDriftDetectionId' \
+            --output text)
+          
+          echo "⏳ Waiting for drift detection to complete..."
+          sleep 15
+          
+          # Check drift detection status
+          DRIFT_STATUS=$(aws cloudformation describe-stack-drift-detection-status \
+            --stack-drift-detection-id ${DRIFT_ID} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackDriftStatus' \
+            --output text)
+          
+          echo "📊 Drift Status: ${DRIFT_STATUS}"
+          
+          if [[ "${DRIFT_STATUS}" == "DRIFTED" ]]; then
+            echo "⚠️  Stack has drifted from expected configuration!"
+            echo ""
+            echo "Drifted Resources:"
+            aws cloudformation describe-stack-resource-drifts \
+              --stack-name ${{ needs.setup.outputs.stack_name }} \
+              --region ${{ env.AWS_REGION }} \
+              --stack-resource-drift-status-filters MODIFIED DELETED \
+              --query 'StackResourceDrifts[*].[LogicalResourceId,ResourceType,StackResourceDriftStatus]' \
+              --output table
+          elif [[ "${DRIFT_STATUS}" == "IN_SYNC" ]]; then
+            echo "✅ No drift detected - stack is in sync"
+          else
+            echo "ℹ️  Drift Status: ${DRIFT_STATUS}"
+          fi
 
-  # Security Configuration
-  AllowedCIDRBlocks:
-    Type: CommaDelimitedList
-    Description: Comma-separated list of CIDR blocks allowed to access ALB
-    Default: 0.0.0.0/0
-
-  # SSL/TLS Configuration
-  EnableHTTPS:
-    Type: String
-    Description: Enable HTTPS listener
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'false'
-
-  CertificateArn:
-    Type: String
-    Description: ACM Certificate ARN for HTTPS (required if EnableHTTPS is true)
-    Default: ''
-
-  SSLPolicy:
-    Type: String
-    Description: SSL security policy for HTTPS listener
-    Default: ELBSecurityPolicy-TLS13-1-2-2021-06
-    AllowedValues:
-      - ELBSecurityPolicy-TLS13-1-2-2021-06
-      - ELBSecurityPolicy-2016-08
-      - ELBSecurityPolicy-TLS-1-2-2017-01
-      - ELBSecurityPolicy-FS-1-2-Res-2020-10
-
-  # Target Group Configuration
-  TargetGroupProtocol:
-    Type: String
-    Description: Protocol for target group
-    AllowedValues:
-      - HTTP
-      - HTTPS
-    Default: HTTP
-
-  TargetGroupPort:
-    Type: Number
-    Description: Port for target group
-    Default: 80
-    MinValue: 1
-    MaxValue: 65535
-
-  TargetType:
-    Type: String
-    Description: Type of targets
-    AllowedValues:
-      - instance
-      - ip
-      - lambda
-    Default: instance
-
-  # Health Check Configuration
-  HealthCheckEnabled:
-    Type: String
-    Description: Enable health checks
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'true'
-
-  HealthCheckProtocol:
-    Type: String
-    Description: Protocol for health checks
-    AllowedValues:
-      - HTTP
-      - HTTPS
-    Default: HTTP
-
-  HealthCheckPath:
-    Type: String
-    Description: Path for health check
-    Default: /health
-
-  HealthCheckIntervalSeconds:
-    Type: Number
-    Description: Health check interval in seconds
-    Default: 30
-    MinValue: 5
-    MaxValue: 300
-
-  HealthCheckTimeoutSeconds:
-    Type: Number
-    Description: Health check timeout in seconds
-    Default: 5
-    MinValue: 2
-    MaxValue: 120
-
-  HealthyThresholdCount:
-    Type: Number
-    Description: Number of consecutive successful health checks
-    Default: 2
-    MinValue: 2
-    MaxValue: 10
-
-  UnhealthyThresholdCount:
-    Type: Number
-    Description: Number of consecutive failed health checks
-    Default: 2
-    MinValue: 2
-    MaxValue: 10
-
-  HealthCheckMatcherCode:
-    Type: String
-    Description: HTTP codes to use when checking for successful response
-    Default: '200'
-
-  # Target Group Attributes
-  DeregistrationDelay:
-    Type: Number
-    Description: Deregistration delay in seconds
-    Default: 300
-    MinValue: 0
-    MaxValue: 3600
-
-  StickinessEnabled:
-    Type: String
-    Description: Enable sticky sessions
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'false'
-
-  StickinessDuration:
-    Type: Number
-    Description: Stickiness duration in seconds
-    Default: 86400
-    MinValue: 1
-    MaxValue: 604800
-
-  # ALB Attributes
-  EnableDeletionProtection:
-    Type: String
-    Description: Enable deletion protection
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'false'
-
-  EnableHttp2:
-    Type: String
-    Description: Enable HTTP/2
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'true'
-
-  EnableAccessLogs:
-    Type: String
-    Description: Enable access logs
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'false'
-
-  AccessLogsBucketName:
-    Type: String
-    Description: S3 bucket name for access logs (required if EnableAccessLogs is true)
-    Default: ''
-
-  AccessLogsBucketPrefix:
-    Type: String
-    Description: S3 bucket prefix for access logs
-    Default: alb-logs
-
-  IdleTimeout:
-    Type: Number
-    Description: Idle timeout in seconds
-    Default: 60
-    MinValue: 1
-    MaxValue: 4000
-
-  # Tags
-  CostCenter:
-    Type: String
-    Description: Cost center tag
-    Default: ''
-
-  Owner:
-    Type: String
-    Description: Owner tag
-    Default: ''
-
-Conditions:
-  HasHTTPS: !Equals [!Ref EnableHTTPS, 'true']
-  HasAccessLogs: !Equals [!Ref EnableAccessLogs, 'true']
-  HasStickiness: !Equals [!Ref StickinessEnabled, 'true']
-  HasCostCenter: !Not [!Equals [!Ref CostCenter, '']]
-  HasOwner: !Not [!Equals [!Ref Owner, '']]
-
-Resources:
-  # Security Group for ALB
-  ALBSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub '${ApplicationName}-${EnvironmentName}-alb-sg'
-      GroupDescription: !Sub 'Security group for ${ApplicationName} ALB in ${EnvironmentName}'
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: !Select [0, !Ref AllowedCIDRBlocks]
-          Description: Allow HTTP traffic
-        - !If
-          - HasHTTPS
-          - IpProtocol: tcp
-            FromPort: 443
-            ToPort: 443
-            CidrIp: !Select [0, !Ref AllowedCIDRBlocks]
-            Description: Allow HTTPS traffic
-          - !Ref AWS::NoValue
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: Allow all outbound traffic
-      Tags:
-        - Key: Name
-          Value: !Sub '${ApplicationName}-${EnvironmentName}-alb-sg'
-        - Key: Environment
-          Value: !Ref EnvironmentName
-        - Key: Application
-          Value: !Ref ApplicationName
-        - !If
-          - HasCostCenter
-          - Key: CostCenter
-            Value: !Ref CostCenter
-          - !Ref AWS::NoValue
-        - !If
-          - HasOwner
-          - Key: Owner
-            Value: !Ref Owner
-          - !Ref AWS::NoValue
-
-  # Application Load Balancer
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: !Sub '${ApplicationName}-${EnvironmentName}-alb'
-      Type: application
-      Scheme: !Ref ALBScheme
-      IpAddressType: !Ref ALBType
-      Subnets: !Ref SubnetIds
-      SecurityGroups:
-        - !Ref ALBSecurityGroup
-      LoadBalancerAttributes:
-        - Key: deletion_protection.enabled
-          Value: !Ref EnableDeletionProtection
-        - Key: routing.http2.enabled
-          Value: !Ref EnableHttp2
-        - Key: idle_timeout.timeout_seconds
-          Value: !Ref IdleTimeout
-        - !If
-          - HasAccessLogs
-          - Key: access_logs.s3.enabled
-            Value: 'true'
-          - Key: access_logs.s3.enabled
-            Value: 'false'
-        - !If
-          - HasAccessLogs
-          - Key: access_logs.s3.bucket
-            Value: !Ref AccessLogsBucketName
-          - !Ref AWS::NoValue
-        - !If
-          - HasAccessLogs
-          - Key: access_logs.s3.prefix
-            Value: !Ref AccessLogsBucketPrefix
-          - !Ref AWS::NoValue
-      Tags:
-        - Key: Name
-          Value: !Sub '${ApplicationName}-${EnvironmentName}-alb'
-        - Key: Environment
-          Value: !Ref EnvironmentName
-        - Key: Application
-          Value: !Ref ApplicationName
-        - !If
-          - HasCostCenter
-          - Key: CostCenter
-            Value: !Ref CostCenter
-          - !Ref AWS::NoValue
-        - !If
-          - HasOwner
-          - Key: Owner
-            Value: !Ref Owner
-          - !Ref AWS::NoValue
-
-  # Target Group
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Sub '${ApplicationName}-${EnvironmentName}-tg'
-      Protocol: !Ref TargetGroupProtocol
-      Port: !Ref TargetGroupPort
-      VpcId: !Ref VpcId
-      TargetType: !Ref TargetType
-      HealthCheckEnabled: !Ref HealthCheckEnabled
-      HealthCheckProtocol: !Ref HealthCheckProtocol
-      HealthCheckPath: !Ref HealthCheckPath
-      HealthCheckIntervalSeconds: !Ref HealthCheckIntervalSeconds
-      HealthCheckTimeoutSeconds: !Ref HealthCheckTimeoutSeconds
-      HealthyThresholdCount: !Ref HealthyThresholdCount
-      UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
-      Matcher:
-        HttpCode: !Ref HealthCheckMatcherCode
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: !Ref DeregistrationDelay
-        - !If
-          - HasStickiness
-          - Key: stickiness.enabled
-            Value: 'true'
-          - Key: stickiness.enabled
-            Value: 'false'
-        - !If
-          - HasStickiness
-          - Key: stickiness.type
-            Value: lb_cookie
-          - !Ref AWS::NoValue
-        - !If
-          - HasStickiness
-          - Key: stickiness.lb_cookie.duration_seconds
-            Value: !Ref StickinessDuration
-          - !Ref AWS::NoValue
-      Tags:
-        - Key: Name
-          Value: !Sub '${ApplicationName}-${EnvironmentName}-tg'
-        - Key: Environment
-          Value: !Ref EnvironmentName
-        - Key: Application
-          Value: !Ref ApplicationName
-        - !If
-          - HasCostCenter
-          - Key: CostCenter
-            Value: !Ref CostCenter
-          - !Ref AWS::NoValue
-        - !If
-          - HasOwner
-          - Key: Owner
-            Value: !Ref Owner
-          - !Ref AWS::NoValue
-
-  # HTTP Listener
-  HTTPListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Protocol: HTTP
-      Port: 80
-      DefaultActions:
-        - !If
-          - HasHTTPS
-          - Type: redirect
-            RedirectConfig:
-              Protocol: HTTPS
-              Port: '443'
-              StatusCode: HTTP_301
-          - Type: forward
-            TargetGroupArn: !Ref TargetGroup
-
-  # HTTPS Listener (conditional)
-  HTTPSListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Condition: HasHTTPS
-    Properties:
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Protocol: HTTPS
-      Port: 443
-      SslPolicy: !Ref SSLPolicy
-      Certificates:
-        - CertificateArn: !Ref CertificateArn
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
-
-Outputs:
-  ALBArn:
-    Description: ARN of the Application Load Balancer
-    Value: !Ref ApplicationLoadBalancer
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-Arn'
-
-  ALBDNSName:
-    Description: DNS name of the Application Load Balancer
-    Value: !GetAtt ApplicationLoadBalancer.DNSName
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-DNSName'
-
-  ALBHostedZoneID:
-    Description: Hosted Zone ID of the Application Load Balancer
-    Value: !GetAtt ApplicationLoadBalancer.CanonicalHostedZoneID
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-HostedZoneID'
-
-  ALBFullName:
-    Description: Full name of the Application Load Balancer
-    Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-FullName'
-
-  TargetGroupArn:
-    Description: ARN of the Target Group
-    Value: !Ref TargetGroup
-    Export:
-      Name: !Sub '${AWS::StackName}-TargetGroup-Arn'
-
-  TargetGroupFullName:
-    Description: Full name of the Target Group
-    Value: !GetAtt TargetGroup.TargetGroupFullName
-    Export:
-      Name: !Sub '${AWS::StackName}-TargetGroup-FullName'
-
-  ALBSecurityGroupId:
-    Description: Security Group ID of the ALB
-    Value: !Ref ALBSecurityGroup
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-SecurityGroup-Id'
-
-  HTTPListenerArn:
-    Description: ARN of the HTTP Listener
-    Value: !Ref HTTPListener
-    Export:
-      Name: !Sub '${AWS::StackName}-HTTP-Listener-Arn'
-
-  HTTPSListenerArn:
-    Description: ARN of the HTTPS Listener (if enabled)
-    Value: !If [HasHTTPS, !Ref HTTPSListener, 'N/A']
-    Export:
-      Name: !Sub '${AWS::StackName}-HTTPS-Listener-Arn'
-
-  ALBURL:
-    Description: URL of the Application Load Balancer
-    Value: !Sub 
-      - '${Protocol}://${DNSName}'
-      - Protocol: !If [HasHTTPS, 'https', 'http']
-        DNSName: !GetAtt ApplicationLoadBalancer.DNSName
-    Export:
-      Name: !Sub '${AWS::StackName}-ALB-URL'
+  # Job 6: Notification
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [setup, deploy, delete]
+    if: always()
+    
+    steps:
+      - name: Set Notification Status
+        id: status
+        run: |
+          if [[ "${{ needs.deploy.result }}" == "success" ]] || [[ "${{ needs.delete.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.deploy.result }}" == "failure" ]] || [[ "${{ needs.delete.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          else
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            echo "emoji=ℹ️" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Final Summary
+        run: |
+          echo "## ${{ steps.status.outputs.emoji }} Pipeline Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ steps.status.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ needs.setup.outputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack:** ${{ needs.setup.outputs.stack_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.status.outputs.status }}" == "success" ]]; then
+            echo "### ✅ Success" >> $GITHUB_STEP_SUMMARY
+            echo "Pipeline completed successfully!" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.status.outputs.status }}" == "failure" ]]; then
+            echo "### ❌ Failure" >> $GITHUB_STEP_SUMMARY
+            echo "Pipeline failed. Please check the logs for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ℹ️ Validation Only" >> $GITHUB_STEP_SUMMARY
+            echo "Template validation completed." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Job Status
+        run: |
+          if [[ "${{ steps.status.outputs.status }}" == "failure" ]]; then
+            exit 1
+          fi
