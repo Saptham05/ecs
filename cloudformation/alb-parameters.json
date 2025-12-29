@@ -1,0 +1,130 @@
+[
+  {
+    "ParameterKey": "EnvironmentName",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "ApplicationName",
+    "ParameterValue": "myapp"
+  },
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "vpc-xxxxxxxxxxxxxxxxx"
+  },
+  {
+    "ParameterKey": "SubnetIds",
+    "ParameterValue": "subnet-xxxxxxxxxxxxxxxxx,subnet-yyyyyyyyyyyyyyyyy"
+  },
+  {
+    "ParameterKey": "ALBScheme",
+    "ParameterValue": "internet-facing"
+  },
+  {
+    "ParameterKey": "ALBType",
+    "ParameterValue": "ipv4"
+  },
+  {
+    "ParameterKey": "AllowedCIDRBlocks",
+    "ParameterValue": "0.0.0.0/0"
+  },
+  {
+    "ParameterKey": "EnableHTTPS",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "CertificateArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "SSLPolicy",
+    "ParameterValue": "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  },
+  {
+    "ParameterKey": "TargetGroupProtocol",
+    "ParameterValue": "HTTP"
+  },
+  {
+    "ParameterKey": "TargetGroupPort",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "TargetType",
+    "ParameterValue": "instance"
+  },
+  {
+    "ParameterKey": "HealthCheckEnabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "HealthCheckProtocol",
+    "ParameterValue": "HTTP"
+  },
+  {
+    "ParameterKey": "HealthCheckPath",
+    "ParameterValue": "/health"
+  },
+  {
+    "ParameterKey": "HealthCheckIntervalSeconds",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "HealthCheckTimeoutSeconds",
+    "ParameterValue": "5"
+  },
+  {
+    "ParameterKey": "HealthyThresholdCount",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "UnhealthyThresholdCount",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "HealthCheckMatcherCode",
+    "ParameterValue": "200"
+  },
+  {
+    "ParameterKey": "DeregistrationDelay",
+    "ParameterValue": "300"
+  },
+  {
+    "ParameterKey": "StickinessEnabled",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "StickinessDuration",
+    "ParameterValue": "86400"
+  },
+  {
+    "ParameterKey": "EnableDeletionProtection",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "EnableHttp2",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "EnableAccessLogs",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "AccessLogsBucketName",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AccessLogsBucketPrefix",
+    "ParameterValue": "alb-logs"
+  },
+  {
+    "ParameterKey": "IdleTimeout",
+    "ParameterValue": "60"
+  },
+  {
+    "ParameterKey": "CostCenter",
+    "ParameterValue": "Engineering"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "DevOps Team"
+  }
+]
