@@ -80,6 +80,22 @@
     "ParameterValue": "80"
   },
   {
+    "ParameterKey": "Environment3Key",
+    "ParameterValue": "app1"
+  },
+  {
+    "ParameterKey": "Environment3Value",
+    "ParameterValue": "my"
+  },
+  {
+    "ParameterKey": "Environment4Key",
+    "ParameterValue": "app2"
+  },
+  {
+    "ParameterKey": "Environment4Value",
+    "ParameterValue": "me"
+  },
+  {
     "ParameterKey": "Environment",
     "ParameterValue": "production"
   },
