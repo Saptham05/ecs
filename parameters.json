@@ -81,11 +81,67 @@
   },
   {
     "ParameterKey": "Environment3Key",
-    "ParameterValue": "app1"
+    "ParameterValue": "LOG_LEVEL"
   },
   {
     "ParameterKey": "Environment3Value",
-    "ParameterValue": "my"
+    "ParameterValue": "info"
+  },
+  {
+    "ParameterKey": "Environment4Key",
+    "ParameterValue": "NODE_ENV"
+  },
+  {
+    "ParameterKey": "Environment4Value",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Environment5Key",
+    "ParameterValue": "API_TIMEOUT"
+  },
+  {
+    "ParameterKey": "Environment5Value",
+    "ParameterValue": "30000"
+  },
+  {
+    "ParameterKey": "Environment6Key",
+    "ParameterValue": "MAX_CONNECTIONS"
+  },
+  {
+    "ParameterKey": "Environment6Value",
+    "ParameterValue": "100"
+  },
+  {
+    "ParameterKey": "Environment7Key",
+    "ParameterValue": "ENABLE_METRICS"
+  },
+  {
+    "ParameterKey": "Environment7Value",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Environment8Key",
+    "ParameterValue": "CACHE_TTL"
+  },
+  {
+    "ParameterKey": "Environment8Value",
+    "ParameterValue": "3600"
+  },
+  {
+    "ParameterKey": "Environment9Key",
+    "ParameterValue": "WORKER_THREADS"
+  },
+  {
+    "ParameterKey": "Environment9Value",
+    "ParameterValue": "4"
+  },
+  {
+    "ParameterKey": "Environment10Key",
+    "ParameterValue": "REGION"
+  },
+  {
+    "ParameterKey": "Environment10Value",
+    "ParameterValue": "ap-south-1"
   },
   {
     "ParameterKey": "Environment",
@@ -96,12 +152,11 @@
     "ParameterValue": "web-platform"
   },
   {
-      "ParameterKey": "ExistingExecutionRoleArn",
-      "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
+    "ParameterKey": "ExistingExecutionRoleArn",
+    "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
   },
   {
     "ParameterKey": "Owner",
     "ParameterValue": "platform-team"
   }
 ]
-
