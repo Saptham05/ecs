@@ -1,0 +1,323 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Fully Parameterized SQS Queue CloudFormation Template - Reusable for multiple SQS resources'
+
+Parameters:
+  # Basic Queue Configuration
+  QueueName:
+    Type: String
+    Description: Name of the SQS queue (leave empty for auto-generated name)
+    Default: ''
+
+  QueueType:
+    Type: String
+    Description: Type of queue (Standard or FIFO)
+    Default: Standard
+    AllowedValues:
+      - Standard
+      - FIFO
+
+  # Queue Attributes
+  DelaySeconds:
+    Type: Number
+    Description: Time in seconds for which the delivery of all messages in the queue is delayed
+    Default: 0
+    MinValue: 0
+    MaxValue: 900
+
+  MaximumMessageSize:
+    Type: Number
+    Description: Maximum message size in bytes (1024 bytes to 262144 bytes)
+    Default: 262144
+    MinValue: 1024
+    MaxValue: 262144
+
+  MessageRetentionPeriod:
+    Type: Number
+    Description: Time in seconds that messages are retained (60 seconds to 1209600 seconds - 14 days)
+    Default: 345600
+    MinValue: 60
+    MaxValue: 1209600
+
+  ReceiveMessageWaitTimeSeconds:
+    Type: Number
+    Description: Time in seconds for which a ReceiveMessage call waits for a message (long polling)
+    Default: 0
+    MinValue: 0
+    MaxValue: 20
+
+  VisibilityTimeout:
+    Type: Number
+    Description: Time in seconds that a message is invisible after being received
+    Default: 30
+    MinValue: 0
+    MaxValue: 43200
+
+  # FIFO Queue Specific
+  ContentBasedDeduplication:
+    Type: String
+    Description: Enable content-based deduplication for FIFO queues
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  DeduplicationScope:
+    Type: String
+    Description: Deduplication scope for FIFO queues (messageGroup or queue)
+    Default: queue
+    AllowedValues:
+      - queue
+      - messageGroup
+
+  FifoThroughputLimit:
+    Type: String
+    Description: Throughput limit for FIFO queues (perQueue or perMessageGroupId)
+    Default: perQueue
+    AllowedValues:
+      - perQueue
+      - perMessageGroupId
+
+  # Dead Letter Queue Configuration
+  EnableDeadLetterQueue:
+    Type: String
+    Description: Enable Dead Letter Queue
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  DeadLetterQueueName:
+    Type: String
+    Description: Name of the Dead Letter Queue (only used if EnableDeadLetterQueue is true)
+    Default: ''
+
+  MaxReceiveCount:
+    Type: Number
+    Description: Number of times a message can be received before being sent to DLQ
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  # Encryption Configuration
+  SqsManagedSseEnabled:
+    Type: String
+    Description: Enable SQS-managed server-side encryption
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  KmsMasterKeyId:
+    Type: String
+    Description: KMS key ID for encryption (leave empty for SQS-managed encryption or AWS managed key)
+    Default: ''
+
+  KmsDataKeyReusePeriodSeconds:
+    Type: Number
+    Description: Time in seconds that Amazon SQS can reuse a data key (60 to 86400 seconds)
+    Default: 300
+    MinValue: 60
+    MaxValue: 86400
+
+  # Tagging
+  Environment:
+    Type: String
+    Description: Environment tag
+    Default: Dev
+    AllowedValues:
+      - Dev
+      - Test
+      - Staging
+      - Prod
+
+  Project:
+    Type: String
+    Description: Project name tag
+    Default: ''
+
+  Owner:
+    Type: String
+    Description: Owner/Team tag
+    Default: ''
+
+  CostCenter:
+    Type: String
+    Description: Cost center tag
+    Default: ''
+
+  AdditionalTags:
+    Type: String
+    Description: Additional tags in JSON format (e.g., {"Key1":"Value1","Key2":"Value2"})
+    Default: '{}'
+
+Conditions:
+  IsFIFOQueue: !Equals [!Ref QueueType, 'FIFO']
+  HasQueueName: !Not [!Equals [!Ref QueueName, '']]
+  EnableDLQ: !Equals [!Ref EnableDeadLetterQueue, 'true']
+  HasDLQName: !Not [!Equals [!Ref DeadLetterQueueName, '']]
+  UseKMSEncryption: !Not [!Equals [!Ref KmsMasterKeyId, '']]
+  UseSQSManagedEncryption: !And
+    - !Equals [!Ref SqsManagedSseEnabled, 'true']
+    - !Equals [!Ref KmsMasterKeyId, '']
+  HasProject: !Not [!Equals [!Ref Project, '']]
+  HasOwner: !Not [!Equals [!Ref Owner, '']]
+  HasCostCenter: !Not [!Equals [!Ref CostCenter, '']]
+
+Resources:
+  # Dead Letter Queue (created first if enabled)
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Condition: EnableDLQ
+    Properties:
+      QueueName: !If
+        - HasDLQName
+        - !If
+          - IsFIFOQueue
+          - !Sub '${DeadLetterQueueName}.fifo'
+          - !Ref DeadLetterQueueName
+        - !If
+          - IsFIFOQueue
+          - !Sub '${AWS::StackName}-DLQ.fifo'
+          - !Sub '${AWS::StackName}-DLQ'
+      FifoQueue: !If [IsFIFOQueue, true, false]
+      ContentBasedDeduplication: !If
+        - IsFIFOQueue
+        - !Ref ContentBasedDeduplication
+        - !Ref AWS::NoValue
+      DeduplicationScope: !If
+        - IsFIFOQueue
+        - !Ref DeduplicationScope
+        - !Ref AWS::NoValue
+      FifoThroughputLimit: !If
+        - IsFIFOQueue
+        - !Ref FifoThroughputLimit
+        - !Ref AWS::NoValue
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, !Ref AWS::NoValue]
+      KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref AWS::NoValue]
+      KmsDataKeyReusePeriodSeconds: !If [UseKMSEncryption, !Ref KmsDataKeyReusePeriodSeconds, !Ref AWS::NoValue]
+      Tags:
+        - Key: Name
+          Value: !If
+            - HasDLQName
+            - !Ref DeadLetterQueueName
+            - !Sub '${AWS::StackName}-DLQ'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Type
+          Value: DeadLetterQueue
+        - !If
+          - HasProject
+          - Key: Project
+            Value: !Ref Project
+          - !Ref AWS::NoValue
+        - !If
+          - HasOwner
+          - Key: Owner
+            Value: !Ref Owner
+          - !Ref AWS::NoValue
+        - !If
+          - HasCostCenter
+          - Key: CostCenter
+            Value: !Ref CostCenter
+          - !Ref AWS::NoValue
+
+  # Main SQS Queue
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - HasQueueName
+        - !If
+          - IsFIFOQueue
+          - !Sub '${QueueName}.fifo'
+          - !Ref QueueName
+        - !If
+          - IsFIFOQueue
+          - !Sub '${AWS::StackName}.fifo'
+          - !Ref AWS::StackName
+      FifoQueue: !If [IsFIFOQueue, true, false]
+      ContentBasedDeduplication: !If
+        - IsFIFOQueue
+        - !Ref ContentBasedDeduplication
+        - !Ref AWS::NoValue
+      DeduplicationScope: !If
+        - IsFIFOQueue
+        - !Ref DeduplicationScope
+        - !Ref AWS::NoValue
+      FifoThroughputLimit: !If
+        - IsFIFOQueue
+        - !Ref FifoThroughputLimit
+        - !Ref AWS::NoValue
+      DelaySeconds: !Ref DelaySeconds
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      VisibilityTimeout: !Ref VisibilityTimeout
+      RedrivePolicy: !If
+        - EnableDLQ
+        - deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+          maxReceiveCount: !Ref MaxReceiveCount
+        - !Ref AWS::NoValue
+      SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, !Ref AWS::NoValue]
+      KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref AWS::NoValue]
+      KmsDataKeyReusePeriodSeconds: !If [UseKMSEncryption, !Ref KmsDataKeyReusePeriodSeconds, !Ref AWS::NoValue]
+      Tags:
+        - Key: Name
+          Value: !If
+            - HasQueueName
+            - !Ref QueueName
+            - !Ref AWS::StackName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: QueueType
+          Value: !Ref QueueType
+        - !If
+          - HasProject
+          - Key: Project
+            Value: !Ref Project
+          - !Ref AWS::NoValue
+        - !If
+          - HasOwner
+          - Key: Owner
+            Value: !Ref Owner
+          - !Ref AWS::NoValue
+        - !If
+          - HasCostCenter
+          - Key: CostCenter
+            Value: !Ref CostCenter
+          - !Ref AWS::NoValue
+
+Outputs:
+  QueueURL:
+    Description: URL of the created SQS queue
+    Value: !Ref SQSQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueURL'
+
+  QueueARN:
+    Description: ARN of the created SQS queue
+    Value: !GetAtt SQSQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueARN'
+
+  QueueName:
+    Description: Name of the created SQS queue
+    Value: !GetAtt SQSQueue.QueueName
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueName'
+
+  DeadLetterQueueURL:
+    Condition: EnableDLQ
+    Description: URL of the Dead Letter Queue
+    Value: !Ref DeadLetterQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQ-URL'
+
+  DeadLetterQueueARN:
+    Condition: EnableDLQ
+    Description: ARN of the Dead Letter Queue
+    Value: !GetAtt DeadLetterQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQ-ARN'
+
