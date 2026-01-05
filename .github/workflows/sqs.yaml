@@ -59,6 +59,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       validation_status: ${{ steps.validate.outputs.status }}
+    permissions:
+      id-token: write   # Required for requesting the JWT
+      contents: read      
     
     steps:
       - name: Checkout Repository
@@ -67,7 +70,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::789406175361:role/GitHubActionsOIDCRole 
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: GitHubActions-sqs-Validate    
 
