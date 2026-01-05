@@ -428,5 +428,3 @@ jobs:
           echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Please check the workflow logs for detailed error information." >> $GITHUB_STEP_SUMMARY
-
-print this
