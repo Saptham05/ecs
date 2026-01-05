@@ -1,0 +1,425 @@
+name: SQS CloudFormation Stack Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create
+          - update
+          - delete
+          - validate
+      stack_name:
+        description: 'CloudFormation Stack Name'
+        required: true
+        type: string
+      parameter_file:
+        description: 'Parameter file path (e.g., parameters/parameters-standard-queue.json)'
+        required: false
+        type: string
+        default: 'parameters/parameters-standard-queue.json'
+      aws_region:
+        description: 'AWS Region'
+        required: true
+        type: choice
+        default: 'ap-south-1'
+        options:
+          - us-east-1
+          - us-east-2
+          - us-west-1
+          - us-west-2
+          - eu-west-1
+          - eu-west-2
+          - eu-central-1
+          - ap-south-1
+          - ap-southeast-1
+          - ap-southeast-2
+          - ap-northeast-1
+      wait_for_completion:
+        description: 'Wait for stack operation to complete'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  TEMPLATE_FILE: 'cloudformation/sqs-template.yaml'
+  AWS_REGION: ${{ inputs.aws_region }}
+
+# Required permissions for OIDC
+permissions:
+  id-token: write   # Required for requesting the JWT
+  contents: read    # Required for actions/checkout
+
+jobs:
+  validate:
+    name: Validate Template
+    runs-on: ubuntu-latest
+    outputs:
+      validation_status: ${{ steps.validate.outputs.status }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-session-name: github-actions-sqs-validation
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate CloudFormation Template
+        id: validate
+        run: |
+          echo "Validating CloudFormation template..."
+          if aws cloudformation validate-template \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --region ${{ env.AWS_REGION }}; then
+            echo "✓ Template is valid"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "✗ Template validation failed"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Check Parameter File
+        if: inputs.action != 'delete' && inputs.action != 'validate'
+        run: |
+          if [ ! -f "${{ inputs.parameter_file }}" ]; then
+            echo "✗ Parameter file not found: ${{ inputs.parameter_file }}"
+            exit 1
+          fi
+          echo "✓ Parameter file exists"
+          
+          # Validate JSON format
+          if jq empty "${{ inputs.parameter_file }}" 2>/dev/null; then
+            echo "✓ Parameter file is valid JSON"
+          else
+            echo "✗ Parameter file is not valid JSON"
+            exit 1
+          fi
+
+  create-stack:
+    name: Create Stack
+    runs-on: ubuntu-latest
+    needs: validate
+    if: inputs.action == 'create'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-sqs-create
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if Stack Exists
+        id: check_stack
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✗ Stack already exists: ${{ inputs.stack_name }}"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Stack does not exist, proceeding with creation"
+          fi
+
+      - name: Create CloudFormation Stack
+        if: steps.check_stack.outputs.exists == 'false'
+        run: |
+          echo "Creating stack: ${{ inputs.stack_name }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "Parameter file: ${{ inputs.parameter_file }}"
+          
+          aws cloudformation create-stack \
+            --stack-name ${{ inputs.stack_name }} \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --parameters file://${{ inputs.parameter_file }} \
+            --region ${{ env.AWS_REGION }} \
+            --tags \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=Workflow,Value=${{ github.workflow }} \
+              Key=RunId,Value=${{ github.run_id }}
+          
+          echo "✓ Stack creation initiated"
+
+      - name: Wait for Stack Creation
+        if: steps.check_stack.outputs.exists == 'false' && inputs.wait_for_completion
+        run: |
+          echo "Waiting for stack creation to complete..."
+          aws cloudformation wait stack-create-complete \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Stack created successfully"
+
+      - name: Get Stack Outputs
+        if: steps.check_stack.outputs.exists == 'false'
+        run: |
+          echo "Stack Outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output table
+
+      - name: Stack Already Exists
+        if: steps.check_stack.outputs.exists == 'true'
+        run: |
+          echo "::error::Stack '${{ inputs.stack_name }}' already exists. Use 'update' action instead."
+          exit 1
+
+  update-stack:
+    name: Update Stack
+    runs-on: ubuntu-latest
+    needs: validate
+    if: inputs.action == 'update'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-sqs-update
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if Stack Exists
+        id: check_stack
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✓ Stack exists, proceeding with update"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✗ Stack does not exist: ${{ inputs.stack_name }}"
+          fi
+
+      - name: Create Change Set
+        if: steps.check_stack.outputs.exists == 'true'
+        id: changeset
+        run: |
+          CHANGESET_NAME="changeset-${{ github.run_id }}-${{ github.run_attempt }}"
+          echo "changeset_name=$CHANGESET_NAME" >> $GITHUB_OUTPUT
+          
+          echo "Creating change set: $CHANGESET_NAME"
+          
+          aws cloudformation create-change-set \
+            --stack-name ${{ inputs.stack_name }} \
+            --change-set-name $CHANGESET_NAME \
+            --template-body file://${{ env.TEMPLATE_FILE }} \
+            --parameters file://${{ inputs.parameter_file }} \
+            --region ${{ env.AWS_REGION }} \
+            --tags \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=Workflow,Value=${{ github.workflow }} \
+              Key=RunId,Value=${{ github.run_id }}
+          
+          echo "Waiting for change set creation..."
+          aws cloudformation wait change-set-create-complete \
+            --stack-name ${{ inputs.stack_name }} \
+            --change-set-name $CHANGESET_NAME \
+            --region ${{ env.AWS_REGION }} || true
+
+      - name: Describe Change Set
+        if: steps.check_stack.outputs.exists == 'true'
+        id: describe_changeset
+        continue-on-error: true
+        run: |
+          echo "Change Set Details:"
+          CHANGES=$(aws cloudformation describe-change-set \
+            --stack-name ${{ inputs.stack_name }} \
+            --change-set-name ${{ steps.changeset.outputs.changeset_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Changes' \
+            --output json)
+          
+          echo "$CHANGES" | jq '.'
+          
+          # Check if there are any changes
+          CHANGE_COUNT=$(echo "$CHANGES" | jq '. | length')
+          echo "change_count=$CHANGE_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$CHANGE_COUNT" -eq 0 ]; then
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+            echo "::warning::No changes detected in the stack"
+          else
+            echo "no_changes=false" >> $GITHUB_OUTPUT
+            echo "✓ Changes detected: $CHANGE_COUNT"
+          fi
+
+      - name: Execute Change Set
+        if: steps.check_stack.outputs.exists == 'true' && steps.describe_changeset.outputs.no_changes != 'true'
+        run: |
+          echo "Executing change set..."
+          aws cloudformation execute-change-set \
+            --stack-name ${{ inputs.stack_name }} \
+            --change-set-name ${{ steps.changeset.outputs.changeset_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Change set execution initiated"
+
+      - name: Wait for Stack Update
+        if: steps.check_stack.outputs.exists == 'true' && steps.describe_changeset.outputs.no_changes != 'true' && inputs.wait_for_completion
+        run: |
+          echo "Waiting for stack update to complete..."
+          aws cloudformation wait stack-update-complete \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Stack updated successfully"
+
+      - name: Delete Change Set (No Changes)
+        if: steps.check_stack.outputs.exists == 'true' && steps.describe_changeset.outputs.no_changes == 'true'
+        run: |
+          echo "Deleting empty change set..."
+          aws cloudformation delete-change-set \
+            --stack-name ${{ inputs.stack_name }} \
+            --change-set-name ${{ steps.changeset.outputs.changeset_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "::notice::No updates were performed. The stack is already up to date."
+
+      - name: Get Stack Outputs
+        if: steps.check_stack.outputs.exists == 'true' && steps.describe_changeset.outputs.no_changes != 'true'
+        run: |
+          echo "Stack Outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output table
+
+      - name: Stack Does Not Exist
+        if: steps.check_stack.outputs.exists == 'false'
+        run: |
+          echo "::error::Stack '${{ inputs.stack_name }}' does not exist. Use 'create' action instead."
+          exit 1
+
+  delete-stack:
+    name: Delete Stack
+    runs-on: ubuntu-latest
+    if: inputs.action == 'delete'
+    environment: production  # Require manual approval for deletion
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-sqs-delete
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check if Stack Exists
+        id: check_stack
+        run: |
+          if aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✓ Stack exists, proceeding with deletion"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✗ Stack does not exist: ${{ inputs.stack_name }}"
+          fi
+
+      - name: Get Stack Resources Before Deletion
+        if: steps.check_stack.outputs.exists == 'true'
+        run: |
+          echo "Stack Resources to be deleted:"
+          aws cloudformation describe-stack-resources \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackResources[*].[ResourceType,LogicalResourceId,PhysicalResourceId]' \
+            --output table
+
+      - name: Delete CloudFormation Stack
+        if: steps.check_stack.outputs.exists == 'true'
+        run: |
+          echo "⚠️ Deleting stack: ${{ inputs.stack_name }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          
+          aws cloudformation delete-stack \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Stack deletion initiated"
+
+      - name: Wait for Stack Deletion
+        if: steps.check_stack.outputs.exists == 'true' && inputs.wait_for_completion
+        run: |
+          echo "Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name ${{ inputs.stack_name }} \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Stack deleted successfully"
+
+      - name: Stack Does Not Exist
+        if: steps.check_stack.outputs.exists == 'false'
+        run: |
+          echo "::notice::Stack '${{ inputs.stack_name }}' does not exist. Nothing to delete."
+
+  notify-status:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [validate, create-stack, update-stack, delete-stack]
+    if: always()
+    
+    steps:
+      - name: Check Job Status
+        run: |
+          echo "Workflow Status Summary:"
+          echo "========================"
+          echo "Action: ${{ inputs.action }}"
+          echo "Stack: ${{ inputs.stack_name }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo ""
+          echo "Validation: ${{ needs.validate.result }}"
+          
+          if [ "${{ inputs.action }}" == "create" ]; then
+            echo "Creation: ${{ needs.create-stack.result }}"
+          elif [ "${{ inputs.action }}" == "update" ]; then
+            echo "Update: ${{ needs.update-stack.result }}"
+          elif [ "${{ inputs.action }}" == "delete" ]; then
+            echo "Deletion: ${{ needs.delete-stack.result }}"
+          fi
+
+      - name: Create Success Summary
+        if: ${{ needs.validate.result == 'success' && (needs.create-stack.result == 'success' || needs.update-stack.result == 'success' || needs.delete-stack.result == 'success' || inputs.action == 'validate') }}
+        run: |
+          echo "## ✅ Workflow Completed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** ${{ inputs.stack_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered By:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Failure Summary
+        if: ${{ needs.validate.result == 'failure' || needs.create-stack.result == 'failure' || needs.update-stack.result == 'failure' || needs.delete-stack.result == 'failure' }}
+        run: |
+          echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** ${{ inputs.stack_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the workflow logs for detailed error information." >> $GITHUB_STEP_SUMMARY
