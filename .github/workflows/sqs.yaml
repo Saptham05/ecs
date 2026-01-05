@@ -20,7 +20,7 @@ on:
         description: 'Parameter file path (e.g., parameters/parameters-standard-queue.json)'
         required: false
         type: string
-        default: 'cloudformation/sqs-para-1.json'
+        default: 'parameters/sqs-para-1.json'
       aws_region:
         description: 'AWS Region'
         required: true
@@ -54,25 +54,34 @@ permissions:
   contents: read    # Required for actions/checkout
 
 jobs:
+  configure-aws:
+    name: Configure AWS Credentials
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-session-name: github-actions-sqs-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
   validate:
     name: Validate Template
     runs-on: ubuntu-latest
+    needs: configure-aws
     outputs:
       validation_status: ${{ steps.validate.outputs.status }}
-    permissions:
-      id-token: write   # Required for requesting the JWT
-      contents: read      
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS Credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-sqs-validation-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-sqs-Validate    
 
       - name: Validate CloudFormation Template
         id: validate
@@ -119,8 +128,8 @@ jobs:
       - name: Configure AWS Credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          role-session-name: github-actions-sqs-create
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-sqs-create-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Check if Stack Exists
@@ -148,11 +157,7 @@ jobs:
             --template-body file://${{ env.TEMPLATE_FILE }} \
             --parameters file://${{ inputs.parameter_file }} \
             --region ${{ env.AWS_REGION }} \
-            --tags \
-              Key=ManagedBy,Value=GitHubActions \
-              Key=Repository,Value=${{ github.repository }} \
-              Key=Workflow,Value=${{ github.workflow }} \
-              Key=RunId,Value=${{ github.run_id }}
+            --tags Key=ManagedBy,Value=GitHubActions Key=Repository,Value=${{ github.repository }} Key=Workflow,Value=${{ github.workflow }} Key=RunId,Value=${{ github.run_id }}
           
           echo "✓ Stack creation initiated"
 
@@ -196,7 +201,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: github-actions-sqs-update
+          role-session-name: github-actions-sqs-update-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Check if Stack Exists
@@ -227,11 +232,7 @@ jobs:
             --template-body file://${{ env.TEMPLATE_FILE }} \
             --parameters file://${{ inputs.parameter_file }} \
             --region ${{ env.AWS_REGION }} \
-            --tags \
-              Key=ManagedBy,Value=GitHubActions \
-              Key=Repository,Value=${{ github.repository }} \
-              Key=Workflow,Value=${{ github.workflow }} \
-              Key=RunId,Value=${{ github.run_id }}
+            --tags Key=ManagedBy,Value=GitHubActions Key=Repository,Value=${{ github.repository }} Key=Workflow,Value=${{ github.workflow }} Key=RunId,Value=${{ github.run_id }}
           
           echo "Waiting for change set creation..."
           aws cloudformation wait change-set-create-complete \
@@ -317,6 +318,7 @@ jobs:
   delete-stack:
     name: Delete Stack
     runs-on: ubuntu-latest
+    needs: configure-aws
     if: inputs.action == 'delete'
     environment: production  # Require manual approval for deletion
     
@@ -328,7 +330,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: github-actions-sqs-delete
+          role-session-name: github-actions-sqs-delete-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Check if Stack Exists
@@ -426,3 +428,5 @@ jobs:
           echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Please check the workflow logs for detailed error information." >> $GITHUB_STEP_SUMMARY
+
+print this
