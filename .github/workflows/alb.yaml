@@ -29,6 +29,11 @@ env:
   AWS_REGION: ap-south-1
   TEMPLATE_FILE: cloudformation/alb-cft.yaml
   PARAMETER_FILE: cloudformation/alb-parameters.json
+
+permissions:
+  id-token: write
+  contents: read
+  
   
 jobs:
   # Job 1: Validate CloudFormation Template
