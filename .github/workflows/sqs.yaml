@@ -153,11 +153,11 @@ jobs:
           echo "Parameter file: ${{ inputs.parameter_file }}"
           
           aws cloudformation create-stack \
-            --stack-name ${{ inputs.stack_name }} \
-            --template-body file://${{ env.TEMPLATE_FILE }} \
-            --parameters file://${{ inputs.parameter_file }} \
-            --region ${{ env.AWS_REGION }} \
-            --tags Key=ManagedBy,Value=GitHubActions Key=Repository,Value=${{ github.repository }} Key=Workflow,Value=${{ github.workflow }} Key=RunId,Value=${{ github.run_id }}
+            --stack-name "${{ inputs.stack_name }}" \
+            --template-body "file://${{ env.TEMPLATE_FILE }}" \
+            --parameters "file://${{ inputs.parameter_file }}" \
+            --region "${{ env.AWS_REGION }}" \
+            --tags "Key=ManagedBy,Value=GitHubActions" "Key=Repository,Value=${{ github.repository }}" "Key=RunId,Value=${{ github.run_id }}"
           
           echo "✓ Stack creation initiated"
 
@@ -227,18 +227,18 @@ jobs:
           echo "Creating change set: $CHANGESET_NAME"
           
           aws cloudformation create-change-set \
-            --stack-name ${{ inputs.stack_name }} \
-            --change-set-name $CHANGESET_NAME \
-            --template-body file://${{ env.TEMPLATE_FILE }} \
-            --parameters file://${{ inputs.parameter_file }} \
-            --region ${{ env.AWS_REGION }} \
-            --tags Key=ManagedBy,Value=GitHubActions Key=Repository,Value=${{ github.repository }} Key=Workflow,Value=${{ github.workflow }} Key=RunId,Value=${{ github.run_id }}
+            --stack-name "${{ inputs.stack_name }}" \
+            --change-set-name "$CHANGESET_NAME" \
+            --template-body "file://${{ env.TEMPLATE_FILE }}" \
+            --parameters "file://${{ inputs.parameter_file }}" \
+            --region "${{ env.AWS_REGION }}" \
+            --tags "Key=ManagedBy,Value=GitHubActions" "Key=Repository,Value=${{ github.repository }}" "Key=RunId,Value=${{ github.run_id }}"
           
           echo "Waiting for change set creation..."
           aws cloudformation wait change-set-create-complete \
-            --stack-name ${{ inputs.stack_name }} \
-            --change-set-name $CHANGESET_NAME \
-            --region ${{ env.AWS_REGION }} || true
+            --stack-name "${{ inputs.stack_name }}" \
+            --change-set-name "$CHANGESET_NAME" \
+            --region "${{ env.AWS_REGION }}" || true
 
       - name: Describe Change Set
         if: steps.check_stack.outputs.exists == 'true'
@@ -428,3 +428,5 @@ jobs:
           echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Please check the workflow logs for detailed error information." >> $GITHUB_STEP_SUMMARY
+
+print this
