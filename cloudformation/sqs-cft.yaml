@@ -179,7 +179,7 @@ Resources:
           - IsFIFOQueue
           - !Sub '${AWS::StackName}-DLQ.fifo'
           - !Sub '${AWS::StackName}-DLQ'
-      FifoQueue: !If [IsFIFOQueue, true, false]
+      FifoQueue: !If [IsFIFOQueue, true, !Ref 'AWS::NoValue']
       ContentBasedDeduplication: !If
         - IsFIFOQueue
         - !Ref ContentBasedDeduplication
@@ -236,7 +236,7 @@ Resources:
           - IsFIFOQueue
           - !Sub '${AWS::StackName}.fifo'
           - !Ref AWS::StackName
-      FifoQueue: !If [IsFIFOQueue, true, false]
+      FifoQueue: !If [IsFIFOQueue, true, !Ref 'AWS::NoValue']
       ContentBasedDeduplication: !If
         - IsFIFOQueue
         - !Ref ContentBasedDeduplication
@@ -320,4 +320,3 @@ Outputs:
     Value: !GetAtt DeadLetterQueue.Arn
     Export:
       Name: !Sub '${AWS::StackName}-DLQ-ARN'
-
