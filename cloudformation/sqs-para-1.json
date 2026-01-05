@@ -1,0 +1,86 @@
+[
+  {
+    "ParameterKey": "QueueName",
+    "ParameterValue": "my-standard-queue"
+  },
+  {
+    "ParameterKey": "QueueType",
+    "ParameterValue": "Standard"
+  },
+  {
+    "ParameterKey": "DelaySeconds",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "MaximumMessageSize",
+    "ParameterValue": "262144"
+  },
+  {
+    "ParameterKey": "MessageRetentionPeriod",
+    "ParameterValue": "345600"
+  },
+  {
+    "ParameterKey": "ReceiveMessageWaitTimeSeconds",
+    "ParameterValue": "10"
+  },
+  {
+    "ParameterKey": "VisibilityTimeout",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "ContentBasedDeduplication",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "DeduplicationScope",
+    "ParameterValue": "queue"
+  },
+  {
+    "ParameterKey": "FifoThroughputLimit",
+    "ParameterValue": "perQueue"
+  },
+  {
+    "ParameterKey": "EnableDeadLetterQueue",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "DeadLetterQueueName",
+    "ParameterValue": "my-standard-queue-dlq"
+  },
+  {
+    "ParameterKey": "MaxReceiveCount",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "SqsManagedSseEnabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "KmsMasterKeyId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "KmsDataKeyReusePeriodSeconds",
+    "ParameterValue": "300"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "Prod"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "MyApplication"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "DevTeam"
+  },
+  {
+    "ParameterKey": "CostCenter",
+    "ParameterValue": "Engineering"
+  },
+  {
+    "ParameterKey": "AdditionalTags",
+    "ParameterValue": "{}"
+  }
+]
