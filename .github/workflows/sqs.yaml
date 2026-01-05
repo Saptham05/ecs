@@ -20,7 +20,7 @@ on:
         description: 'Parameter file path (e.g., parameters/parameters-standard-queue.json)'
         required: false
         type: string
-        default: 'parameters/parameters-standard-queue.json'
+        default: 'cloudformation/sqs-para-1.json'
       aws_region:
         description: 'AWS Region'
         required: true
@@ -45,7 +45,7 @@ on:
         default: true
 
 env:
-  TEMPLATE_FILE: 'cloudformation/sqs-template.yaml'
+  TEMPLATE_FILE: 'cloudformation/sqs-cft.yaml'
   AWS_REGION: ${{ inputs.aws_region }}
 
 # Required permissions for OIDC
