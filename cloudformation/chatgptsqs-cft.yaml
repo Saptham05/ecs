@@ -1,0 +1,240 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Fully Parameterized, Reusable SQS Queue CloudFormation Template
+  with Validation Rules and Optional Queue Policy Support
+
+############################
+# PARAMETERS
+############################
+Parameters:
+
+  QueueName:
+    Type: String
+    Default: ''
+    Description: Optional queue name. If empty, stack name is used.
+
+  QueueType:
+    Type: String
+    Default: Standard
+    AllowedValues: [Standard, FIFO]
+
+  DelaySeconds:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 900
+
+  MaximumMessageSize:
+    Type: Number
+    Default: 262144
+    MinValue: 1024
+    MaxValue: 262144
+
+  MessageRetentionPeriod:
+    Type: Number
+    Default: 345600
+    MinValue: 60
+    MaxValue: 1209600
+
+  ReceiveMessageWaitTimeSeconds:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 20
+
+  VisibilityTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 0
+    MaxValue: 43200
+
+  ContentBasedDeduplication:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  DeduplicationScope:
+    Type: String
+    Default: queue
+    AllowedValues: [queue, messageGroup]
+
+  FifoThroughputLimit:
+    Type: String
+    Default: perQueue
+    AllowedValues: [perQueue, perMessageGroupId]
+
+  EnableDeadLetterQueue:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  DeadLetterQueueName:
+    Type: String
+    Default: ''
+
+  MaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  SqsManagedSseEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+  KmsMasterKeyId:
+    Type: String
+    Default: ''
+
+  KmsDataKeyReusePeriodSeconds:
+    Type: Number
+    Default: 300
+    MinValue: 60
+    MaxValue: 86400
+
+  # Queue Policy Parameters
+  AttachQueuePolicy:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Attach an SQS queue policy
+
+  AllowedSourceArn:
+    Type: String
+    Default: ''
+    Description: ARN allowed to send messages (SNS, EventBridge, etc.)
+
+  AllowedSourceAccount:
+    Type: String
+    Default: ''
+    Description: AWS account allowed to send messages
+
+  # Tags
+  Environment:
+    Type: String
+    Default: Dev
+    AllowedValues: [Dev, Test, Staging, Prod]
+
+  Project:
+    Type: String
+    Default: ''
+
+  Owner:
+    Type: String
+    Default: ''
+
+  CostCenter:
+    Type: String
+    Default: ''
+
+############################
+# CONDITIONS
+############################
+Conditions:
+  IsFIFOQueue: !Equals [!Ref QueueType, FIFO]
+  HasQueueName: !Not [!Equals [!Ref QueueName, '']]
+  EnableDLQ: !Equals [!Ref EnableDeadLetterQueue, 'true']
+  HasDLQName: !Not [!Equals [!Ref DeadLetterQueueName, '']]
+  UseKMSEncryption: !Not [!Equals [!Ref KmsMasterKeyId, '']]
+  UseSQSManagedEncryption: !And
+    - !Equals [!Ref SqsManagedSseEnabled, 'true']
+    - !Equals [!Ref KmsMasterKeyId, '']
+  AttachPolicy: !Equals [!Ref AttachQueuePolicy, 'true']
+  HasSourceArn: !Not [!Equals [!Ref AllowedSourceArn, '']]
+  HasSourceAccount: !Not [!Equals [!Ref AllowedSourceAccount, '']]
+  HasProject: !Not [!Equals [!Ref Project, '']]
+  HasOwner: !Not [!Equals [!Ref Owner, '']]
+  HasCostCenter: !Not [!Equals [!Ref CostCenter, '']]
+
+############################
+# RULES (VALIDATION)
+############################
+Rules:
+
+  DLQRequiresMaxReceiveCount:
+    RuleCondition: !Equals [!Ref EnableDeadLetterQueue, 'true']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref MaxReceiveCount, 0]]
+        AssertDescription: MaxReceiveCount must be greater than 0 when DLQ is enabled.
+
+  KMSEncryptionRule:
+    RuleCondition: !Not [!Equals [!Ref KmsMasterKeyId, '']]
+    Assertions:
+      - Assert: !Equals [!Ref SqsManagedSseEnabled, 'false']
+        AssertDescription: Disable SQS-managed encryption when using a customer-managed KMS key.
+
+############################
+# RESOURCES
+############################
+Resources:
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Condition: EnableDLQ
+    Properties:
+      QueueName: !If
+        - HasDLQName
+        - !If [IsFIFOQueue, !Sub '${DeadLetterQueueName}.fifo', !Ref DeadLetterQueueName]
+        - !If [IsFIFOQueue, !Sub '${AWS::StackName}-DLQ.fifo', !Sub '${AWS::StackName}-DLQ']
+      FifoQueue: !If [IsFIFOQueue, true, !Ref AWS::NoValue]
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - HasQueueName
+        - !If [IsFIFOQueue, !Sub '${QueueName}.fifo', !Ref QueueName]
+        - !If [IsFIFOQueue, !Sub '${AWS::StackName}.fifo', !Ref AWS::StackName]
+      FifoQueue: !If [IsFIFOQueue, true, !Ref AWS::NoValue]
+      DelaySeconds: !Ref DelaySeconds
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      VisibilityTimeout: !Ref VisibilityTimeout
+      RedrivePolicy: !If
+        - EnableDLQ
+        - deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+          maxReceiveCount: !Ref MaxReceiveCount
+        - !Ref AWS::NoValue
+      SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, !Ref AWS::NoValue]
+      KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref AWS::NoValue]
+
+  SQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: AttachPolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowSendMessage
+            Effect: Allow
+            Principal:
+              Service:
+                - sns.amazonaws.com
+                - events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !If [HasSourceArn, !Ref AllowedSourceArn, !Ref AWS::NoValue]
+              StringEquals:
+                aws:SourceAccount: !If [HasSourceAccount, !Ref AllowedSourceAccount, !Ref AWS::NoValue]
+
+############################
+# OUTPUTS
+############################
+Outputs:
+
+  QueueURL:
+    Value: !Ref SQSQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueURL'
+
+  QueueARN:
+    Value: !GetAtt SQSQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueARN'
