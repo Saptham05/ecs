@@ -93,24 +93,19 @@ Parameters:
     MinValue: 60
     MaxValue: 86400
 
-  # Queue Policy Parameters
   AttachQueuePolicy:
     Type: String
     Default: 'false'
     AllowedValues: ['true', 'false']
-    Description: Attach an SQS queue policy
 
   AllowedSourceArn:
     Type: String
     Default: ''
-    Description: ARN allowed to send messages (SNS, EventBridge, etc.)
 
   AllowedSourceAccount:
     Type: String
     Default: ''
-    Description: AWS account allowed to send messages
 
-  # Tags
   Environment:
     Type: String
     Default: Dev
@@ -132,7 +127,7 @@ Parameters:
 # CONDITIONS
 ############################
 Conditions:
-  IsFIFOQueue: !Equals [!Ref QueueType, FIFO]
+  IsFIFOQueue: !Equals [!Ref QueueType, 'FIFO']
   HasQueueName: !Not [!Equals [!Ref QueueName, '']]
   EnableDLQ: !Equals [!Ref EnableDeadLetterQueue, 'true']
   HasDLQName: !Not [!Equals [!Ref DeadLetterQueueName, '']]
@@ -155,8 +150,8 @@ Rules:
   DLQRequiresMaxReceiveCount:
     RuleCondition: !Equals [!Ref EnableDeadLetterQueue, 'true']
     Assertions:
-      - Assert: !Not [!Equals [!Ref MaxReceiveCount, 0]]
-        AssertDescription: MaxReceiveCount must be greater than 0 when DLQ is enabled.
+      - Assert: !Not [!Equals [!Ref MaxReceiveCount, '']]
+        AssertDescription: MaxReceiveCount must be provided when DLQ is enabled.
 
   KMSEncryptionRule:
     RuleCondition: !Not [!Equals [!Ref KmsMasterKeyId, '']]
@@ -195,8 +190,10 @@ Resources:
       VisibilityTimeout: !Ref VisibilityTimeout
       RedrivePolicy: !If
         - EnableDLQ
-        - deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
-          maxReceiveCount: !Ref MaxReceiveCount
+        - {
+            deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn,
+            maxReceiveCount: !Ref MaxReceiveCount
+          }
         - !Ref AWS::NoValue
       SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, !Ref AWS::NoValue]
       KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref AWS::NoValue]
