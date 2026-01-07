@@ -41,8 +41,8 @@
   { "ParameterKey": "Environment1Key", "ParameterValue": "SPRING_PROFILES_ACTIVE" },
   { "ParameterKey": "Environment1Value", "ParameterValue": "prod" },
 
-  { "ParameterKey": "Environment2Key", "ParameterValue": "JAVA_OPTS" },
-  { "ParameterKey": "Environment2Value", "ParameterValue": "-Xms256m -Xmx512m" },
+  { "ParameterKey": "Environment2Key", "ParameterValue": "" },
+  { "ParameterKey": "Environment2Value", "ParameterValue": "" },
 
   { "ParameterKey": "Secret1Name", "ParameterValue": "DB_PASSWORD" },
   { "ParameterKey": "Secret1ValueFrom", "ParameterValue": "arn:aws:secretsmanager:ap-south-1:123456789012:secret:db-password" },
