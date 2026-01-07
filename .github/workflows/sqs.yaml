@@ -45,7 +45,7 @@ on:
         default: true
 
 env:
-  TEMPLATE_FILE: 'cloudformation/sqs-cft.yaml'
+  TEMPLATE_FILE: 'cloudformation/chatgptsqs-cft.yaml'
   AWS_REGION: ${{ inputs.aws_region }}
 
 # Required permissions for OIDC
