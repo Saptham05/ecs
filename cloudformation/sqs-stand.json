@@ -1,21 +1,32 @@
 [
-  { "ParameterKey": "QueueName", "ParameterValue": "orders-queue" },
+  { "ParameterKey": "QueueName", "ParameterValue": "standard-processing-queue" },
   { "ParameterKey": "QueueType", "ParameterValue": "Standard" },
 
-  { "ParameterKey": "DelaySeconds", "ParameterValue": "0" },
+  { "ParameterKey": "DelaySeconds", "ParameterValue": "5" },
   { "ParameterKey": "MaximumMessageSize", "ParameterValue": "262144" },
-  { "ParameterKey": "MessageRetentionPeriod", "ParameterValue": "345600" },
-  { "ParameterKey": "ReceiveMessageWaitTimeSeconds", "ParameterValue": "10" },
-  { "ParameterKey": "VisibilityTimeout", "ParameterValue": "30" },
+  { "ParameterKey": "MessageRetentionPeriod", "ParameterValue": "604800" },
+  { "ParameterKey": "ReceiveMessageWaitTimeSeconds", "ParameterValue": "20" },
+  { "ParameterKey": "VisibilityTimeout", "ParameterValue": "60" },
 
-  { "ParameterKey": "EnableDeadLetterQueue", "ParameterValue": "false" },
+  { "ParameterKey": "EnableDeadLetterQueue", "ParameterValue": "true" },
+  { "ParameterKey": "DeadLetterQueueName", "ParameterValue": "standard-processing-dlq" },
+  { "ParameterKey": "MaxReceiveCount", "ParameterValue": "5" },
 
   { "ParameterKey": "SqsManagedSseEnabled", "ParameterValue": "true" },
+  { "ParameterKey": "KmsMasterKeyId", "ParameterValue": "" },
 
-  { "ParameterKey": "AttachQueuePolicy", "ParameterValue": "false" },
+  { "ParameterKey": "AttachQueuePolicy", "ParameterValue": "true" },
+  {
+    "ParameterKey": "AllowedSourceArn",
+    "ParameterValue": "arn:aws:events:ap-south-1:123456789012:rule/standard-processing-rule"
+  },
+  {
+    "ParameterKey": "AllowedSourceAccount",
+    "ParameterValue": "123456789012"
+  },
 
-  { "ParameterKey": "Environment", "ParameterValue": "Dev" },
-  { "ParameterKey": "Project", "ParameterValue": "OrderService" },
+  { "ParameterKey": "Environment", "ParameterValue": "Prod" },
+  { "ParameterKey": "Project", "ParameterValue": "AsyncPlatform" },
   { "ParameterKey": "Owner", "ParameterValue": "PlatformTeam" },
-  { "ParameterKey": "CostCenter", "ParameterValue": "CC1001" }
+  { "ParameterKey": "CostCenter", "ParameterValue": "CC-ASYNC-01" }
 ]
