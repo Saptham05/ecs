@@ -1,0 +1,21 @@
+[
+  { "ParameterKey": "QueueName", "ParameterValue": "orders-queue" },
+  { "ParameterKey": "QueueType", "ParameterValue": "Standard" },
+
+  { "ParameterKey": "DelaySeconds", "ParameterValue": "0" },
+  { "ParameterKey": "MaximumMessageSize", "ParameterValue": "262144" },
+  { "ParameterKey": "MessageRetentionPeriod", "ParameterValue": "345600" },
+  { "ParameterKey": "ReceiveMessageWaitTimeSeconds", "ParameterValue": "10" },
+  { "ParameterKey": "VisibilityTimeout", "ParameterValue": "30" },
+
+  { "ParameterKey": "EnableDeadLetterQueue", "ParameterValue": "false" },
+
+  { "ParameterKey": "SqsManagedSseEnabled", "ParameterValue": "true" },
+
+  { "ParameterKey": "AttachQueuePolicy", "ParameterValue": "false" },
+
+  { "ParameterKey": "Environment", "ParameterValue": "Dev" },
+  { "ParameterKey": "Project", "ParameterValue": "OrderService" },
+  { "ParameterKey": "Owner", "ParameterValue": "PlatformTeam" },
+  { "ParameterKey": "CostCenter", "ParameterValue": "CC1001" }
+]
