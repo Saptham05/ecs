@@ -78,9 +78,5 @@
   {
     "ParameterKey": "CostCenter",
     "ParameterValue": "Engineering"
-  },
-  {
-    "ParameterKey": "AdditionalTags",
-    "ParameterValue": "{}"
   }
 ]
