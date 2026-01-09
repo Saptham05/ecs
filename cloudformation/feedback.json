@@ -1,0 +1,106 @@
+[
+  {
+    "ParameterKey": "QueueName",
+    "ParameterValue": "feedback-trigger-queue-dev"
+  },
+  {
+    "ParameterKey": "QueueType",
+    "ParameterValue": "Standard"
+  },
+  {
+    "ParameterKey": "DelaySeconds",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "MaximumMessageSize",
+    "ParameterValue": "262144"
+  },
+  {
+    "ParameterKey": "MessageRetentionPeriod",
+    "ParameterValue": "345600"
+  },
+  {
+    "ParameterKey": "ReceiveMessageWaitTimeSeconds",
+    "ParameterValue": "20"
+  },
+  {
+    "ParameterKey": "VisibilityTimeout",
+    "ParameterValue": "60"
+  },
+  {
+    "ParameterKey": "ContentBasedDeduplication",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "DeduplicationScope",
+    "ParameterValue": "queue"
+  },
+  {
+    "ParameterKey": "FifoThroughputLimit",
+    "ParameterValue": "perQueue"
+  },
+  {
+    "ParameterKey": "EnableDeadLetterQueue",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "DeadLetterQueueName",
+    "ParameterValue": "feedback-trigger-dlq-dev"
+  },
+  {
+    "ParameterKey": "MaxReceiveCount",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "DLQMessageRetentionPeriod",
+    "ParameterValue": "604800"
+  },
+  {
+    "ParameterKey": "SqsManagedSseEnabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "KmsMasterKeyId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "KmsDataKeyReusePeriodSeconds",
+    "ParameterValue": "300"
+  },
+  {
+    "ParameterKey": "AttachQueuePolicy",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "QueuePolicyType",
+    "ParameterValue": "AccountOwner"
+  },
+  {
+    "ParameterKey": "AllowedSourceArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AllowedSourceAccount",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AttachDLQPolicy",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "Dev"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "FeedbackSystem"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "DevTeam"
+  },
+  {
+    "ParameterKey": "CostCenter",
+    "ParameterValue": ""
+  }
+]
