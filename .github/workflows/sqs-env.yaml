@@ -55,7 +55,7 @@ on:
         default: true
 
 env:
-  TEMPLATE_FILE: 'cloudformation/chatgptsqs-cft.yaml'
+  TEMPLATE_FILE: 'cloudformation/claude-new.yaml'
   AWS_REGION: ${{ inputs.aws_region }}
   ENVIRONMENT: ${{ inputs.environment }}
 
