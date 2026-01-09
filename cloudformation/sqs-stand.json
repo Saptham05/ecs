@@ -1,5 +1,5 @@
 [
-  { "ParameterKey": "QueueName", "ParameterValue": "standard-processing-queue" },
+  { "ParameterKey": "QueueName", "ParameterValue": "standard-processing-queue-dev" },
   { "ParameterKey": "QueueType", "ParameterValue": "Standard" },
 
   { "ParameterKey": "DelaySeconds", "ParameterValue": "5" },
@@ -9,7 +9,7 @@
   { "ParameterKey": "VisibilityTimeout", "ParameterValue": "60" },
 
   { "ParameterKey": "EnableDeadLetterQueue", "ParameterValue": "true" },
-  { "ParameterKey": "DeadLetterQueueName", "ParameterValue": "standard-processing-dlq" },
+  { "ParameterKey": "DeadLetterQueueName", "ParameterValue": "standard-processing-dlq-dev" },
   { "ParameterKey": "MaxReceiveCount", "ParameterValue": "5" },
 
   { "ParameterKey": "SqsManagedSseEnabled", "ParameterValue": "true" },
