@@ -30,7 +30,7 @@ on:
         description: 'Parameter file path (e.g., parameters/sqs/dev-sqs-service-test.json)'
         required: false
         type: string
-        default: 'parameters/sqs/${{ inputs.environment }}-sqs-service.json'
+        default: 'parameters/sqs/sqs-service.json'
       aws_region:
         description: 'AWS Region'
         required: true
