@@ -69,7 +69,7 @@
   },
   {
     "ParameterKey": "AttachQueuePolicy",
-    "ParameterValue": "false"
+    "ParameterValue": "true"
   },
   {
     "ParameterKey": "QueuePolicyType",
@@ -85,7 +85,7 @@
   },
   {
     "ParameterKey": "AttachDLQPolicy",
-    "ParameterValue": "false"
+    "ParameterValue": "true"
   },
   {
     "ParameterKey": "Environment",
