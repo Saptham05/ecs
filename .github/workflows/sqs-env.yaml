@@ -55,7 +55,7 @@ on:
         default: true
 
 env:
-  TEMPLATE_FILE: 'cloudformation/claude-new.yaml'
+  TEMPLATE_FILE: 'cloudformation/claude-new11.yaml'
   AWS_REGION: ${{ inputs.aws_region }}
   ENVIRONMENT: ${{ inputs.environment }}
 
