@@ -218,7 +218,7 @@ Conditions:
   UseByQueue: !And
     - !Equals [!Ref EnableRedriveAllowPolicy, 'true']
     - !Equals [!Ref RedrivePermission, 'byQueue']
-  HasSourceQueueArns: !Not [!Equals [!Join ['', !Ref SourceQueueArns], '']]
+  HasSourceQueueArns: !Not [!Equals [!Select [0, !Ref SourceQueueArns], '']]
   
   # DLQ Redrive Allow Policy Conditions
   EnableDLQRedriveAllow: !And
@@ -228,7 +228,7 @@ Conditions:
     - !Equals [!Ref EnableDeadLetterQueue, 'true']
     - !Equals [!Ref EnableDLQRedriveAllowPolicy, 'true']
     - !Equals [!Ref DLQRedrivePermission, 'byQueue']
-  HasDLQSourceQueueArns: !Not [!Equals [!Join ['', !Ref DLQSourceQueueArns], '']]
+  HasDLQSourceQueueArns: !Not [!Equals [!Select [0, !Ref DLQSourceQueueArns], '']]
   
   # Queue Policy Conditions
   AttachPolicy: !Equals [!Ref AttachQueuePolicy, 'true']
@@ -307,22 +307,7 @@ Rules:
       - Assert: !Not [!Equals [!Ref CustomDLQPolicyJson, '']]
         AssertDescription: CustomDLQPolicyJson must be provided when DLQPolicyType is Custom.
 
-  ByQueueRequiresSourceArns:
-    RuleCondition: !And
-      - !Equals [!Ref EnableRedriveAllowPolicy, 'true']
-      - !Equals [!Ref RedrivePermission, 'byQueue']
-    Assertions:
-      - Assert: !Not [!Equals [!Join ['', !Ref SourceQueueArns], '']]
-        AssertDescription: SourceQueueArns must be provided when RedrivePermission is byQueue.
 
-  DLQByQueueRequiresSourceArns:
-    RuleCondition: !And
-      - !Equals [!Ref EnableDeadLetterQueue, 'true']
-      - !Equals [!Ref EnableDLQRedriveAllowPolicy, 'true']
-      - !Equals [!Ref DLQRedrivePermission, 'byQueue']
-    Assertions:
-      - Assert: !Not [!Equals [!Join ['', !Ref DLQSourceQueueArns], '']]
-        AssertDescription: DLQSourceQueueArns must be provided when DLQRedrivePermission is byQueue.
 
 ############################
 # RESOURCES
