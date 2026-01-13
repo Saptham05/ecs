@@ -1,0 +1,551 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Fully Parameterized, Reusable SQS Queue CloudFormation Template
+  with Validation Rules, Queue Policy Support, Redrive Allow Policy, and Custom Access Policy
+
+############################
+# PARAMETERS
+############################
+Parameters:
+
+  QueueName:
+    Type: String
+    Default: ''
+    Description: Optional queue name. If empty, stack name is used.
+
+  QueueType:
+    Type: String
+    Default: Standard
+    AllowedValues: [Standard, FIFO]
+
+  DelaySeconds:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 900
+
+  MaximumMessageSize:
+    Type: Number
+    Default: 262144
+    MinValue: 1024
+    MaxValue: 262144
+
+  MessageRetentionPeriod:
+    Type: Number
+    Default: 345600
+    MinValue: 60
+    MaxValue: 1209600
+
+  ReceiveMessageWaitTimeSeconds:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 20
+
+  VisibilityTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 0
+    MaxValue: 43200
+
+  ContentBasedDeduplication:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  DeduplicationScope:
+    Type: String
+    Default: queue
+    AllowedValues: [queue, messageGroup]
+
+  FifoThroughputLimit:
+    Type: String
+    Default: perQueue
+    AllowedValues: [perQueue, perMessageGroupId]
+
+  EnableDeadLetterQueue:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+
+  DeadLetterQueueName:
+    Type: String
+    Default: ''
+
+  MaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  DLQMessageRetentionPeriod:
+    Type: Number
+    Default: 604800
+    MinValue: 60
+    MaxValue: 1209600
+    Description: Message retention period for Dead Letter Queue in seconds (default 7 days)
+
+  SqsManagedSseEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+  KmsMasterKeyId:
+    Type: String
+    Default: ''
+
+  KmsDataKeyReusePeriodSeconds:
+    Type: Number
+    Default: 300
+    MinValue: 60
+    MaxValue: 86400
+
+  # Redrive Allow Policy Configuration (NEW)
+  EnableRedriveAllowPolicy:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable Redrive Allow Policy to control which source queues can use this queue as their DLQ
+
+  RedrivePermission:
+    Type: String
+    Default: 'allowAll'
+    AllowedValues: ['allowAll', 'byQueue', 'denyAll']
+    Description: 'allowAll: Any source queue can use this as DLQ. byQueue: Only specified queues. denyAll: No queue can use this as DLQ.'
+
+  SourceQueueArns:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Comma-separated list of source queue ARNs (up to 10) when RedrivePermission is byQueue. Example - arn:aws:sqs:region:account:queue1,arn:aws:sqs:region:account:queue2
+
+  # Queue Policy Configuration (ENHANCED)
+  AttachQueuePolicy:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable to attach a queue policy
+
+  QueuePolicyType:
+    Type: String
+    Default: 'AccountOwner'
+    AllowedValues: ['ServiceBased', 'AccountOwner', 'Custom']
+    Description: 'ServiceBased: Allow SNS/EventBridge. AccountOwner: Allow account root full access. Custom: Use CustomPolicyJson.'
+
+  AllowedSourceArn:
+    Type: String
+    Default: ''
+    Description: Source ARN for ServiceBased policy (e.g., SNS topic ARN)
+
+  AllowedSourceAccount:
+    Type: String
+    Default: ''
+    Description: Source account ID for ServiceBased policy
+
+  CustomPolicyJson:
+    Type: String
+    Default: ''
+    Description: Custom JSON policy document (must be valid JSON). Use this when QueuePolicyType is Custom.
+
+  # DLQ Policy Configuration
+  AttachDLQPolicy:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable to attach a queue policy to the DLQ
+
+  DLQPolicyType:
+    Type: String
+    Default: 'AccountOwner'
+    AllowedValues: ['AccountOwner', 'Custom']
+    Description: 'AccountOwner: Allow account root full access. Custom: Use CustomDLQPolicyJson.'
+
+  CustomDLQPolicyJson:
+    Type: String
+    Default: ''
+    Description: Custom JSON policy document for DLQ (must be valid JSON). Use this when DLQPolicyType is Custom.
+
+  # DLQ Redrive Allow Policy Configuration (NEW)
+  EnableDLQRedriveAllowPolicy:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable Redrive Allow Policy for the Dead Letter Queue
+
+  DLQRedrivePermission:
+    Type: String
+    Default: 'denyAll'
+    AllowedValues: ['allowAll', 'byQueue', 'denyAll']
+    Description: Redrive permission for DLQ (typically denyAll since DLQs should not have their own DLQs)
+
+  DLQSourceQueueArns:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Comma-separated list of source queue ARNs for DLQ when DLQRedrivePermission is byQueue
+
+  # Tagging
+  Environment:
+    Type: String
+    Default: Dev
+    AllowedValues: [Dev, Test, Staging, Prod]
+
+  Project:
+    Type: String
+    Default: ''
+
+  Owner:
+    Type: String
+    Default: ''
+
+  CostCenter:
+    Type: String
+    Default: ''
+
+############################
+# CONDITIONS
+############################
+Conditions:
+  IsFIFOQueue: !Equals [!Ref QueueType, 'FIFO']
+  HasQueueName: !Not [!Equals [!Ref QueueName, '']]
+  EnableDLQ: !Equals [!Ref EnableDeadLetterQueue, 'true']
+  HasDLQName: !Not [!Equals [!Ref DeadLetterQueueName, '']]
+  UseKMSEncryption: !Not [!Equals [!Ref KmsMasterKeyId, '']]
+  UseSQSManagedEncryption: !And
+    - !Equals [!Ref SqsManagedSseEnabled, 'true']
+    - !Equals [!Ref KmsMasterKeyId, '']
+  
+  # Redrive Allow Policy Conditions
+  EnableRedriveAllow: !Equals [!Ref EnableRedriveAllowPolicy, 'true']
+  UseByQueue: !And
+    - !Equals [!Ref EnableRedriveAllowPolicy, 'true']
+    - !Equals [!Ref RedrivePermission, 'byQueue']
+  HasSourceQueueArns: !Not [!Equals [!Select [0, !Ref SourceQueueArns], '']]
+  
+  # DLQ Redrive Allow Policy Conditions
+  EnableDLQRedriveAllow: !And
+    - !Equals [!Ref EnableDeadLetterQueue, 'true']
+    - !Equals [!Ref EnableDLQRedriveAllowPolicy, 'true']
+  UseDLQByQueue: !And
+    - !Equals [!Ref EnableDeadLetterQueue, 'true']
+    - !Equals [!Ref EnableDLQRedriveAllowPolicy, 'true']
+    - !Equals [!Ref DLQRedrivePermission, 'byQueue']
+  HasDLQSourceQueueArns: !Not [!Equals [!Select [0, !Ref DLQSourceQueueArns], '']]
+  
+  # Queue Policy Conditions
+  AttachPolicy: !Equals [!Ref AttachQueuePolicy, 'true']
+  UseServiceBasedPolicy: !And
+    - !Equals [!Ref AttachQueuePolicy, 'true']
+    - !Equals [!Ref QueuePolicyType, 'ServiceBased']
+  UseAccountOwnerPolicy: !And
+    - !Equals [!Ref AttachQueuePolicy, 'true']
+    - !Equals [!Ref QueuePolicyType, 'AccountOwner']
+  UseCustomPolicy: !And
+    - !Equals [!Ref AttachQueuePolicy, 'true']
+    - !Equals [!Ref QueuePolicyType, 'Custom']
+  HasCustomPolicy: !Not [!Equals [!Ref CustomPolicyJson, '']]
+  
+  # DLQ Policy Conditions
+  AttachDLQPolicyCondition: !And
+    - !Equals [!Ref AttachDLQPolicy, 'true']
+    - !Equals [!Ref EnableDeadLetterQueue, 'true']
+  UseDLQAccountOwnerPolicy: !And
+    - !Equals [!Ref AttachDLQPolicy, 'true']
+    - !Equals [!Ref EnableDeadLetterQueue, 'true']
+    - !Equals [!Ref DLQPolicyType, 'AccountOwner']
+  UseDLQCustomPolicy: !And
+    - !Equals [!Ref AttachDLQPolicy, 'true']
+    - !Equals [!Ref EnableDeadLetterQueue, 'true']
+    - !Equals [!Ref DLQPolicyType, 'Custom']
+  HasCustomDLQPolicy: !Not [!Equals [!Ref CustomDLQPolicyJson, '']]
+  
+  HasSourceArn: !Not [!Equals [!Ref AllowedSourceArn, '']]
+  HasSourceAccount: !Not [!Equals [!Ref AllowedSourceAccount, '']]
+  HasProject: !Not [!Equals [!Ref Project, '']]
+  HasOwner: !Not [!Equals [!Ref Owner, '']]
+  HasCostCenter: !Not [!Equals [!Ref CostCenter, '']]
+
+############################
+# RULES (VALIDATION)
+############################
+Rules:
+
+  DLQRequiresMaxReceiveCount:
+    RuleCondition: !Equals [!Ref EnableDeadLetterQueue, 'true']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref MaxReceiveCount, '']]
+        AssertDescription: MaxReceiveCount must be provided when DLQ is enabled.
+
+  KMSEncryptionRule:
+    RuleCondition: !Not [!Equals [!Ref KmsMasterKeyId, '']]
+    Assertions:
+      - Assert: !Equals [!Ref SqsManagedSseEnabled, 'false']
+        AssertDescription: Disable SQS-managed encryption when using a customer-managed KMS key.
+
+  ServiceBasedPolicyRequiresSource:
+    RuleCondition: !And
+      - !Equals [!Ref AttachQueuePolicy, 'true']
+      - !Equals [!Ref QueuePolicyType, 'ServiceBased']
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref AllowedSourceArn, '']]
+          - !Not [!Equals [!Ref AllowedSourceAccount, '']]
+        AssertDescription: ServiceBased policy requires either AllowedSourceArn or AllowedSourceAccount.
+
+  CustomPolicyRequiresJson:
+    RuleCondition: !And
+      - !Equals [!Ref AttachQueuePolicy, 'true']
+      - !Equals [!Ref QueuePolicyType, 'Custom']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref CustomPolicyJson, '']]
+        AssertDescription: CustomPolicyJson must be provided when QueuePolicyType is Custom.
+
+  CustomDLQPolicyRequiresJson:
+    RuleCondition: !And
+      - !Equals [!Ref AttachDLQPolicy, 'true']
+      - !Equals [!Ref EnableDeadLetterQueue, 'true']
+      - !Equals [!Ref DLQPolicyType, 'Custom']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref CustomDLQPolicyJson, '']]
+        AssertDescription: CustomDLQPolicyJson must be provided when DLQPolicyType is Custom.
+
+
+
+############################
+# RESOURCES
+############################
+Resources:
+
+  # Dead Letter Queue
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Condition: EnableDLQ
+    Properties:
+      QueueName: !If
+        - HasDLQName
+        - !If [IsFIFOQueue, !Sub '${DeadLetterQueueName}.fifo', !Ref DeadLetterQueueName]
+        - !If [IsFIFOQueue, !Sub '${AWS::StackName}-DLQ.fifo', !Sub '${AWS::StackName}-DLQ']
+      FifoQueue: !If [IsFIFOQueue, true, !Ref 'AWS::NoValue']
+      VisibilityTimeout: !Ref VisibilityTimeout
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref DLQMessageRetentionPeriod
+      DelaySeconds: !Ref DelaySeconds
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, false]
+      KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref 'AWS::NoValue']
+      # Redrive Allow Policy for DLQ
+      RedriveAllowPolicy: !If
+        - EnableDLQRedriveAllow
+        - !If
+          - UseDLQByQueue
+          - redrivePermission: byQueue
+            sourceQueueArns: !Ref DLQSourceQueueArns
+          - redrivePermission: !Ref DLQRedrivePermission
+        - !Ref 'AWS::NoValue'
+      Tags:
+        - Key: Name
+          Value: !If
+            - HasDLQName
+            - !Ref DeadLetterQueueName
+            - !Sub '${AWS::StackName}-DLQ'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Type
+          Value: DeadLetterQueue
+        - !If
+          - HasProject
+          - Key: Project
+            Value: !Ref Project
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasOwner
+          - Key: Owner
+            Value: !Ref Owner
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasCostCenter
+          - Key: CostCenter
+            Value: !Ref CostCenter
+          - !Ref 'AWS::NoValue'
+
+  # DLQ Policy - Account Owner
+  DeadLetterQueuePolicyAccountOwner:
+    Type: AWS::SQS::QueuePolicy
+    Condition: UseDLQAccountOwnerPolicy
+    Properties:
+      Queues:
+        - !Ref DeadLetterQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: __default_policy_ID
+        Statement:
+          - Sid: __owner_statement
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'SQS:*'
+            Resource: !GetAtt DeadLetterQueue.Arn
+
+  # DLQ Policy - Custom
+  DeadLetterQueuePolicyCustom:
+    Type: AWS::SQS::QueuePolicy
+    Condition: UseDLQCustomPolicy
+    Properties:
+      Queues:
+        - !Ref DeadLetterQueue
+      PolicyDocument: !Ref CustomDLQPolicyJson
+
+  # Main SQS Queue
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !If
+        - HasQueueName
+        - !If [IsFIFOQueue, !Sub '${QueueName}.fifo', !Ref QueueName]
+        - !If [IsFIFOQueue, !Sub '${AWS::StackName}.fifo', !Ref AWS::StackName]
+      FifoQueue: !If [IsFIFOQueue, true, !Ref 'AWS::NoValue']
+      ContentBasedDeduplication: !If
+        - IsFIFOQueue
+        - !Ref ContentBasedDeduplication
+        - !Ref 'AWS::NoValue'
+      DeduplicationScope: !If
+        - IsFIFOQueue
+        - !Ref DeduplicationScope
+        - !Ref 'AWS::NoValue'
+      FifoThroughputLimit: !If
+        - IsFIFOQueue
+        - !Ref FifoThroughputLimit
+        - !Ref 'AWS::NoValue'
+      DelaySeconds: !Ref DelaySeconds
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      VisibilityTimeout: !Ref VisibilityTimeout
+      RedrivePolicy: !If
+        - EnableDLQ
+        - deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+          maxReceiveCount: !Ref MaxReceiveCount
+        - !Ref 'AWS::NoValue'
+      # Redrive Allow Policy for Main Queue
+      RedriveAllowPolicy: !If
+        - EnableRedriveAllow
+        - !If
+          - UseByQueue
+          - redrivePermission: byQueue
+            sourceQueueArns: !Ref SourceQueueArns
+          - redrivePermission: !Ref RedrivePermission
+        - !Ref 'AWS::NoValue'
+      SqsManagedSseEnabled: !If [UseSQSManagedEncryption, true, false]
+      KmsMasterKeyId: !If [UseKMSEncryption, !Ref KmsMasterKeyId, !Ref 'AWS::NoValue']
+      KmsDataKeyReusePeriodSeconds: !If [UseKMSEncryption, !Ref KmsDataKeyReusePeriodSeconds, !Ref 'AWS::NoValue']
+      Tags:
+        - Key: Name
+          Value: !If
+            - HasQueueName
+            - !Ref QueueName
+            - !Ref AWS::StackName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: QueueType
+          Value: !Ref QueueType
+        - !If
+          - HasProject
+          - Key: Project
+            Value: !Ref Project
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasOwner
+          - Key: Owner
+            Value: !Ref Owner
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasCostCenter
+          - Key: CostCenter
+            Value: !Ref CostCenter
+          - !Ref 'AWS::NoValue'
+
+  # Queue Policy - Service Based (SNS/EventBridge)
+  SQSQueuePolicyServiceBased:
+    Type: AWS::SQS::QueuePolicy
+    Condition: UseServiceBasedPolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowSendMessage
+            Effect: Allow
+            Principal:
+              Service:
+                - sns.amazonaws.com
+                - events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !If [HasSourceArn, !Ref AllowedSourceArn, !Ref 'AWS::NoValue']
+              StringEquals:
+                aws:SourceAccount: !If [HasSourceAccount, !Ref AllowedSourceAccount, !Ref 'AWS::NoValue']
+
+  # Queue Policy - Account Owner (Full Access)
+  SQSQueuePolicyAccountOwner:
+    Type: AWS::SQS::QueuePolicy
+    Condition: UseAccountOwnerPolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: __default_policy_ID
+        Statement:
+          - Sid: __owner_statement
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'SQS:*'
+            Resource: !GetAtt SQSQueue.Arn
+
+  # Queue Policy - Custom
+  SQSQueuePolicyCustom:
+    Type: AWS::SQS::QueuePolicy
+    Condition: UseCustomPolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument: !Ref CustomPolicyJson
+
+############################
+# OUTPUTS
+############################
+Outputs:
+
+  QueueURL:
+    Description: URL of the created SQS queue
+    Value: !Ref SQSQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueURL'
+
+  QueueARN:
+    Description: ARN of the created SQS queue
+    Value: !GetAtt SQSQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueARN'
+
+  QueueName:
+    Description: Name of the created SQS queue
+    Value: !GetAtt SQSQueue.QueueName
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueName'
+
+  DeadLetterQueueURL:
+    Condition: EnableDLQ
+    Description: URL of the Dead Letter Queue
+    Value: !Ref DeadLetterQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQ-URL'
+
+  DeadLetterQueueARN:
+    Condition: EnableDLQ
+    Description: ARN of the Dead Letter Queue
+    Value: !GetAtt DeadLetterQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQ-ARN'
