@@ -1,144 +1,142 @@
-{
-  "Parameters": [
-    {
-      "ParameterKey": "QueueName",
-      "ParameterValue": "content-publish-queue-dev"
-    },
-    {
-      "ParameterKey": "QueueType",
-      "ParameterValue": "Standard"
-    },
-    {
-      "ParameterKey": "DelaySeconds",
-      "ParameterValue": "0"
-    },
-    {
-      "ParameterKey": "MaximumMessageSize",
-      "ParameterValue": "262144"
-    },
-    {
-      "ParameterKey": "MessageRetentionPeriod",
-      "ParameterValue": "345600"
-    },
-    {
-      "ParameterKey": "ReceiveMessageWaitTimeSeconds",
-      "ParameterValue": "0"
-    },
-    {
-      "ParameterKey": "VisibilityTimeout",
-      "ParameterValue": "30"
-    },
-    {
-      "ParameterKey": "ContentBasedDeduplication",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "DeduplicationScope",
-      "ParameterValue": "queue"
-    },
-    {
-      "ParameterKey": "FifoThroughputLimit",
-      "ParameterValue": "perQueue"
-    },
-    {
-      "ParameterKey": "EnableDeadLetterQueue",
-      "ParameterValue": "true"
-    },
-    {
-      "ParameterKey": "DeadLetterQueueName",
-      "ParameterValue": "content-publish-queue-dlq-dev"
-    },
-    {
-      "ParameterKey": "MaxReceiveCount",
-      "ParameterValue": "10"
-    },
-    {
-      "ParameterKey": "DLQMessageRetentionPeriod",
-      "ParameterValue": "345600"
-    },
-    {
-      "ParameterKey": "SqsManagedSseEnabled",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "KmsMasterKeyId",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "KmsDataKeyReusePeriodSeconds",
-      "ParameterValue": "300"
-    },
-    {
-      "ParameterKey": "EnableRedriveAllowPolicy",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "RedrivePermission",
-      "ParameterValue": "allowAll"
-    },
-    {
-      "ParameterKey": "SourceQueueArns",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "AttachQueuePolicy",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "QueuePolicyType",
-      "ParameterValue": "AccountOwner"
-    },
-    {
-      "ParameterKey": "AllowedSourceArn",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "AllowedSourceAccount",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "CustomPolicyJson",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "AttachDLQPolicy",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "DLQPolicyType",
-      "ParameterValue": "AccountOwner"
-    },
-    {
-      "ParameterKey": "CustomDLQPolicyJson",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "EnableDLQRedriveAllowPolicy",
-      "ParameterValue": "false"
-    },
-    {
-      "ParameterKey": "DLQRedrivePermission",
-      "ParameterValue": "denyAll"
-    },
-    {
-      "ParameterKey": "DLQSourceQueueArns",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "Environment",
-      "ParameterValue": "Dev"
-    },
-    {
-      "ParameterKey": "Project",
-      "ParameterValue": "HCS-ContentPublish"
-    },
-    {
-      "ParameterKey": "Owner",
-      "ParameterValue": ""
-    },
-    {
-      "ParameterKey": "CostCenter",
-      "ParameterValue": ""
-    }
-  ]
-}
+[
+  {
+    "ParameterKey": "QueueName",
+    "ParameterValue": "content-publish-queue-dev"
+  },
+  {
+    "ParameterKey": "QueueType",
+    "ParameterValue": "Standard"
+  },
+  {
+    "ParameterKey": "DelaySeconds",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "MaximumMessageSize",
+    "ParameterValue": "262144"
+  },
+  {
+    "ParameterKey": "MessageRetentionPeriod",
+    "ParameterValue": "345600"
+  },
+  {
+    "ParameterKey": "ReceiveMessageWaitTimeSeconds",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "VisibilityTimeout",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "ContentBasedDeduplication",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "DeduplicationScope",
+    "ParameterValue": "queue"
+  },
+  {
+    "ParameterKey": "FifoThroughputLimit",
+    "ParameterValue": "perQueue"
+  },
+  {
+    "ParameterKey": "EnableDeadLetterQueue",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "DeadLetterQueueName",
+    "ParameterValue": "content-publish-queue-dlq-dev"
+  },
+  {
+    "ParameterKey": "MaxReceiveCount",
+    "ParameterValue": "10"
+  },
+  {
+    "ParameterKey": "DLQMessageRetentionPeriod",
+    "ParameterValue": "345600"
+  },
+  {
+    "ParameterKey": "SqsManagedSseEnabled",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "KmsMasterKeyId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "KmsDataKeyReusePeriodSeconds",
+    "ParameterValue": "300"
+  },
+  {
+    "ParameterKey": "EnableRedriveAllowPolicy",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "RedrivePermission",
+    "ParameterValue": "allowAll"
+  },
+  {
+    "ParameterKey": "SourceQueueArns",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AttachQueuePolicy",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "QueuePolicyType",
+    "ParameterValue": "AccountOwner"
+  },
+  {
+    "ParameterKey": "AllowedSourceArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AllowedSourceAccount",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CustomPolicyJson",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "AttachDLQPolicy",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "DLQPolicyType",
+    "ParameterValue": "AccountOwner"
+  },
+  {
+    "ParameterKey": "CustomDLQPolicyJson",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnableDLQRedriveAllowPolicy",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "DLQRedrivePermission",
+    "ParameterValue": "denyAll"
+  },
+  {
+    "ParameterKey": "DLQSourceQueueArns",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "Dev"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "HCS-ContentPublish"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "DevTeam"
+  },
+  {
+    "ParameterKey": "CostCenter",
+    "ParameterValue": ""
+  }
+]
