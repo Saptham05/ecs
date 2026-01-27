@@ -1,0 +1,594 @@
+[
+  {
+    "ParameterKey": "TaskDefinitionFamily",
+    "ParameterValue": "microservices-stack"
+  },
+  {
+    "ParameterKey": "LaunchType",
+    "ParameterValue": "FARGATE"
+  },
+  {
+    "ParameterKey": "TaskCpu",
+    "ParameterValue": "4096"
+  },
+  {
+    "ParameterKey": "TaskMemory",
+    "ParameterValue": "8GB"
+  },
+  {
+    "ParameterKey": "NetworkMode",
+    "ParameterValue": "awsvpc"
+  },
+  {
+    "ParameterKey": "EphemeralStorageSize",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "ecommerce-platform"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "platform-engineering"
+  },
+  {
+    "ParameterKey": "CreateExecutionRole",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "CreateTaskRole",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "EnableLogging",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "LogGroupName",
+    "ParameterValue": "/ecs/microservices-stack"
+  },
+  {
+    "ParameterKey": "LogRetentionDays",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "LogDriverMode",
+    "ParameterValue": "non-blocking"
+  },
+  {
+    "ParameterKey": "EnableEfsVolume",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "EfsVolumeId",
+    "ParameterValue": "fs-0123456789abcdef0"
+  },
+  {
+    "ParameterKey": "EfsRootDirectory",
+    "ParameterValue": "/shared"
+  },
+  {
+    "ParameterKey": "EfsTransitEncryption",
+    "ParameterValue": "ENABLED"
+  },
+  {
+    "ParameterKey": "Container1Enabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container1Name",
+    "ParameterValue": "frontend-app"
+  },
+  {
+    "ParameterKey": "Container1Image",
+    "ParameterValue": "123456789012.dkr.ecr.us-east-1.amazonaws.com/frontend:v2.1.0"
+  },
+  {
+    "ParameterKey": "Container1Cpu",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "Container1Memory",
+    "ParameterValue": "2048"
+  },
+  {
+    "ParameterKey": "Container1MemoryReservation",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "Container1Essential",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container1Port",
+    "ParameterValue": "3000"
+  },
+  {
+    "ParameterKey": "Container1Protocol",
+    "ParameterValue": "tcp"
+  },
+  {
+    "ParameterKey": "Container1LogStreamPrefix",
+    "ParameterValue": "frontend"
+  },
+  {
+    "ParameterKey": "Container1EnableHealthCheck",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container1HealthCheckCommand",
+    "ParameterValue": "CMD-SHELL, curl -f http://localhost:3000/health || exit 1"
+  },
+  {
+    "ParameterKey": "Container1HealthCheckInterval",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "Container1HealthCheckTimeout",
+    "ParameterValue": "5"
+  },
+  {
+    "ParameterKey": "Container1HealthCheckRetries",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "Container1HealthCheckStartPeriod",
+    "ParameterValue": "60"
+  },
+  {
+    "ParameterKey": "Container1EnableEfsMount",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container1EfsMountPath",
+    "ParameterValue": "/mnt/shared/uploads"
+  },
+  {
+    "ParameterKey": "Container1Env1Key",
+    "ParameterValue": "NODE_ENV"
+  },
+  {
+    "ParameterKey": "Container1Env1Value",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Container1Env2Key",
+    "ParameterValue": "API_URL"
+  },
+  {
+    "ParameterKey": "Container1Env2Value",
+    "ParameterValue": "http://localhost:8080"
+  },
+  {
+    "ParameterKey": "Container1Env3Key",
+    "ParameterValue": "REDIS_URL"
+  },
+  {
+    "ParameterKey": "Container1Env3Value",
+    "ParameterValue": "redis://localhost:6379"
+  },
+  {
+    "ParameterKey": "Container1Secret1Name",
+    "ParameterValue": "SESSION_SECRET"
+  },
+  {
+    "ParameterKey": "Container1Secret1ValueFrom",
+    "ParameterValue": "arn:aws:secretsmanager:us-east-1:123456789012:secret:frontend/session-secret-abc123"
+  },
+  {
+    "ParameterKey": "Container2Enabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container2Name",
+    "ParameterValue": "backend-api"
+  },
+  {
+    "ParameterKey": "Container2Image",
+    "ParameterValue": "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:v2.1.0"
+  },
+  {
+    "ParameterKey": "Container2Cpu",
+    "ParameterValue": "1536"
+  },
+  {
+    "ParameterKey": "Container2Memory",
+    "ParameterValue": "3072"
+  },
+  {
+    "ParameterKey": "Container2MemoryReservation",
+    "ParameterValue": "2048"
+  },
+  {
+    "ParameterKey": "Container2Essential",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container2Port",
+    "ParameterValue": "8080"
+  },
+  {
+    "ParameterKey": "Container2Protocol",
+    "ParameterValue": "tcp"
+  },
+  {
+    "ParameterKey": "Container2LogStreamPrefix",
+    "ParameterValue": "backend"
+  },
+  {
+    "ParameterKey": "Container2EnableHealthCheck",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container2HealthCheckCommand",
+    "ParameterValue": "CMD-SHELL, curl -f http://localhost:8080/api/health || exit 1"
+  },
+  {
+    "ParameterKey": "Container2HealthCheckInterval",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "Container2HealthCheckTimeout",
+    "ParameterValue": "10"
+  },
+  {
+    "ParameterKey": "Container2HealthCheckRetries",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "Container2HealthCheckStartPeriod",
+    "ParameterValue": "90"
+  },
+  {
+    "ParameterKey": "Container2EnableEfsMount",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container2EfsMountPath",
+    "ParameterValue": "/mnt/shared/uploads"
+  },
+  {
+    "ParameterKey": "Container2DependsOnContainer",
+    "ParameterValue": "redis-cache"
+  },
+  {
+    "ParameterKey": "Container2DependsOnCondition",
+    "ParameterValue": "START"
+  },
+  {
+    "ParameterKey": "Container2Env1Key",
+    "ParameterValue": "NODE_ENV"
+  },
+  {
+    "ParameterKey": "Container2Env1Value",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Container2Env2Key",
+    "ParameterValue": "PORT"
+  },
+  {
+    "ParameterKey": "Container2Env2Value",
+    "ParameterValue": "8080"
+  },
+  {
+    "ParameterKey": "Container2Env3Key",
+    "ParameterValue": "DATABASE_HOST"
+  },
+  {
+    "ParameterKey": "Container2Env3Value",
+    "ParameterValue": "prod-db.cluster-abc123.us-east-1.rds.amazonaws.com"
+  },
+  {
+    "ParameterKey": "Container2Env4Key",
+    "ParameterValue": "DATABASE_PORT"
+  },
+  {
+    "ParameterKey": "Container2Env4Value",
+    "ParameterValue": "5432"
+  },
+  {
+    "ParameterKey": "Container2Env5Key",
+    "ParameterValue": "DATABASE_NAME"
+  },
+  {
+    "ParameterKey": "Container2Env5Value",
+    "ParameterValue": "ecommerce"
+  },
+  {
+    "ParameterKey": "Container2Env6Key",
+    "ParameterValue": "REDIS_HOST"
+  },
+  {
+    "ParameterKey": "Container2Env6Value",
+    "ParameterValue": "localhost"
+  },
+  {
+    "ParameterKey": "Container2Env7Key",
+    "ParameterValue": "REDIS_PORT"
+  },
+  {
+    "ParameterKey": "Container2Env7Value",
+    "ParameterValue": "6379"
+  },
+  {
+    "ParameterKey": "Container2Secret1Name",
+    "ParameterValue": "DATABASE_PASSWORD"
+  },
+  {
+    "ParameterKey": "Container2Secret1ValueFrom",
+    "ParameterValue": "arn:aws:secretsmanager:us-east-1:123456789012:secret:rds/postgres/password-def456"
+  },
+  {
+    "ParameterKey": "Container2Secret2Name",
+    "ParameterValue": "JWT_SECRET"
+  },
+  {
+    "ParameterKey": "Container2Secret2ValueFrom",
+    "ParameterValue": "arn:aws:secretsmanager:us-east-1:123456789012:secret:backend/jwt-secret-ghi789"
+  },
+  {
+    "ParameterKey": "Container2Secret3Name",
+    "ParameterValue": "STRIPE_API_KEY"
+  },
+  {
+    "ParameterKey": "Container2Secret3ValueFrom",
+    "ParameterValue": "arn:aws:secretsmanager:us-east-1:123456789012:secret:payment/stripe-api-key-jkl012"
+  },
+  {
+    "ParameterKey": "Container3Enabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container3Name",
+    "ParameterValue": "redis-cache"
+  },
+  {
+    "ParameterKey": "Container3Image",
+    "ParameterValue": "redis:7.2-alpine"
+  },
+  {
+    "ParameterKey": "Container3Cpu",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container3Memory",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "Container3MemoryReservation",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container3Essential",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container3Port",
+    "ParameterValue": "6379"
+  },
+  {
+    "ParameterKey": "Container3Protocol",
+    "ParameterValue": "tcp"
+  },
+  {
+    "ParameterKey": "Container3LogStreamPrefix",
+    "ParameterValue": "redis"
+  },
+  {
+    "ParameterKey": "Container3EnableHealthCheck",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container3HealthCheckCommand",
+    "ParameterValue": "CMD-SHELL, redis-cli ping | grep PONG"
+  },
+  {
+    "ParameterKey": "Container3HealthCheckInterval",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "Container3HealthCheckTimeout",
+    "ParameterValue": "5"
+  },
+  {
+    "ParameterKey": "Container3HealthCheckRetries",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "Container3HealthCheckStartPeriod",
+    "ParameterValue": "10"
+  },
+  {
+    "ParameterKey": "Container3EnableEfsMount",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container3DependsOnContainer",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Container3Env1Key",
+    "ParameterValue": "REDIS_MAXMEMORY"
+  },
+  {
+    "ParameterKey": "Container3Env1Value",
+    "ParameterValue": "512mb"
+  },
+  {
+    "ParameterKey": "Container3Env2Key",
+    "ParameterValue": "REDIS_MAXMEMORY_POLICY"
+  },
+  {
+    "ParameterKey": "Container3Env2Value",
+    "ParameterValue": "allkeys-lru"
+  },
+  {
+    "ParameterKey": "Container4Enabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container4Name",
+    "ParameterValue": "background-worker"
+  },
+  {
+    "ParameterKey": "Container4Image",
+    "ParameterValue": "123456789012.dkr.ecr.us-east-1.amazonaws.com/worker:v2.1.0"
+  },
+  {
+    "ParameterKey": "Container4Cpu",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container4Memory",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "Container4MemoryReservation",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container4Essential",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container4Port",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "Container4LogStreamPrefix",
+    "ParameterValue": "worker"
+  },
+  {
+    "ParameterKey": "Container4EnableHealthCheck",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container4EnableEfsMount",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container4EfsMountPath",
+    "ParameterValue": "/mnt/shared/processing"
+  },
+  {
+    "ParameterKey": "Container4DependsOnContainer",
+    "ParameterValue": "backend-api"
+  },
+  {
+    "ParameterKey": "Container4DependsOnCondition",
+    "ParameterValue": "HEALTHY"
+  },
+  {
+    "ParameterKey": "Container4Env1Key",
+    "ParameterValue": "NODE_ENV"
+  },
+  {
+    "ParameterKey": "Container4Env1Value",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Container4Env2Key",
+    "ParameterValue": "WORKER_CONCURRENCY"
+  },
+  {
+    "ParameterKey": "Container4Env2Value",
+    "ParameterValue": "5"
+  },
+  {
+    "ParameterKey": "Container4Env3Key",
+    "ParameterValue": "REDIS_HOST"
+  },
+  {
+    "ParameterKey": "Container4Env3Value",
+    "ParameterValue": "localhost"
+  },
+  {
+    "ParameterKey": "Container4Env4Key",
+    "ParameterValue": "QUEUE_NAME"
+  },
+  {
+    "ParameterKey": "Container4Env4Value",
+    "ParameterValue": "background-jobs"
+  },
+  {
+    "ParameterKey": "Container4Secret1Name",
+    "ParameterValue": "DATABASE_PASSWORD"
+  },
+  {
+    "ParameterKey": "Container4Secret1ValueFrom",
+    "ParameterValue": "arn:aws:secretsmanager:us-east-1:123456789012:secret:rds/postgres/password-def456"
+  },
+  {
+    "ParameterKey": "Container5Enabled",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container5Name",
+    "ParameterValue": "log-aggregator"
+  },
+  {
+    "ParameterKey": "Container5Image",
+    "ParameterValue": "amazon/aws-for-fluent-bit:2.31.12"
+  },
+  {
+    "ParameterKey": "Container5Cpu",
+    "ParameterValue": "256"
+  },
+  {
+    "ParameterKey": "Container5Memory",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "Container5MemoryReservation",
+    "ParameterValue": "256"
+  },
+  {
+    "ParameterKey": "Container5Essential",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container5Port",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "Container5LogStreamPrefix",
+    "ParameterValue": "fluent-bit"
+  },
+  {
+    "ParameterKey": "Container5EnableHealthCheck",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container5EnableEfsMount",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "Container5DependsOnContainer",
+    "ParameterValue": "frontend-app"
+  },
+  {
+    "ParameterKey": "Container5DependsOnCondition",
+    "ParameterValue": "START"
+  },
+  {
+    "ParameterKey": "Container5Env1Key",
+    "ParameterValue": "FLB_LOG_LEVEL"
+  },
+  {
+    "ParameterKey": "Container5Env1Value",
+    "ParameterValue": "info"
+  },
+  {
+    "ParameterKey": "Container5Env2Key",
+    "ParameterValue": "AWS_REGION"
+  },
+  {
+    "ParameterKey": "Container5Env2Value",
+    "ParameterValue": "us-east-1"
+  }
+]
