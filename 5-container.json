@@ -1,0 +1,287 @@
+[
+  {
+    "ParameterKey": "ConfigurationMode",
+    "ParameterValue": "Advanced"
+  },
+  {
+    "ParameterKey": "TaskDefinitionFamily",
+    "ParameterValue": "my-multi-container-app"
+  },
+  {
+    "ParameterKey": "LaunchType",
+    "ParameterValue": "FARGATE"
+  },
+  {
+    "ParameterKey": "TaskCpu",
+    "ParameterValue": "2048"
+  },
+  {
+    "ParameterKey": "TaskMemory",
+    "ParameterValue": "4GB"
+  },
+  {
+    "ParameterKey": "CreateTaskRole",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "ExistingTaskRoleArn",
+    "ParameterValue": "arn:aws:iam::516569236000:role/ecsTaskExecutionRole"
+  },
+  {
+    "ParameterKey": "CreateExecutionRole",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "ExistingExecutionRoleArn",
+    "ParameterValue": "arn:aws:iam::516569236000:role/ecsTaskExecutionRole"
+  },
+  {
+    "ParameterKey": "NetworkMode",
+    "ParameterValue": "awsvpc"
+  },
+  {
+    "ParameterKey": "OperatingSystem",
+    "ParameterValue": "LINUX"
+  },
+  {
+    "ParameterKey": "CpuArchitecture",
+    "ParameterValue": "X86_64"
+  },
+  {
+    "ParameterKey": "ContainerName",
+    "ParameterValue": "app-container"
+  },
+  {
+    "ParameterKey": "ContainerImage",
+    "ParameterValue": "nginx:latest"
+  },
+  {
+    "ParameterKey": "ContainerCpu",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "ContainerMemory",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "ContainerMemoryReservation",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "ContainerPort",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "ContainerProtocol",
+    "ParameterValue": "tcp"
+  },
+  {
+    "ParameterKey": "EnvVar1Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar1Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar2Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar2Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar3Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar3Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar4Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar4Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar5Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar5Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar6Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar6Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar7Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar7Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar8Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar8Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar9Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar9Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar10Key",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnvVar10Value",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret1Name",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret1ValueFrom",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret2Name",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret2ValueFrom",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret3Name",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret3ValueFrom",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret4Name",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret4ValueFrom",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret5Name",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "Secret5ValueFrom",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EnableHealthCheck",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "HealthCheckCommand",
+    "ParameterValue": "CMD-SHELL,curl -f http://localhost/ || exit 1"
+  },
+  {
+    "ParameterKey": "HealthCheckInterval",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "HealthCheckTimeout",
+    "ParameterValue": "5"
+  },
+  {
+    "ParameterKey": "HealthCheckRetries",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "HealthCheckStartPeriod",
+    "ParameterValue": "0"
+  },
+  {
+    "ParameterKey": "ContainerDefinitionsJson",
+    "ParameterValue": "[{\"name\":\"main-app\",\"image\":\"516569236000.dkr.ecr.ap-south-1.amazonaws.com/main-app:latest\",\"cpu\":1024,\"memory\":2048,\"memoryReservation\":1024,\"essential\":true,\"portMappings\":[{\"containerPort\":8080,\"protocol\":\"tcp\",\"name\":\"http\"}],\"environment\":[{\"name\":\"APP_ENV\",\"value\":\"production\"},{\"name\":\"PORT\",\"value\":\"8080\"}],\"secrets\":[{\"name\":\"DB_PASSWORD\",\"valueFrom\":\"arn:aws:secretsmanager:ap-south-1:516569236000:secret:db-pass\"}],\"healthCheck\":{\"command\":[\"CMD-SHELL\",\"curl -f http://localhost:8080/health || exit 1\"],\"interval\":30,\"timeout\":5,\"retries\":3,\"startPeriod\":60}},{\"name\":\"nginx-proxy\",\"image\":\"nginx:alpine\",\"cpu\":256,\"memory\":512,\"memoryReservation\":256,\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\",\"name\":\"nginx\"}],\"dependsOn\":[{\"containerName\":\"main-app\",\"condition\":\"HEALTHY\"}],\"environment\":[{\"name\":\"BACKEND_HOST\",\"value\":\"localhost:8080\"}]},{\"name\":\"fluent-bit\",\"image\":\"amazon/aws-for-fluent-bit:latest\",\"cpu\":256,\"memory\":512,\"memoryReservation\":256,\"essential\":false,\"environment\":[{\"name\":\"FLB_LOG_LEVEL\",\"value\":\"info\"}]},{\"name\":\"datadog-agent\",\"image\":\"gcr.io/datadoghq/agent:latest\",\"cpu\":256,\"memory\":512,\"memoryReservation\":256,\"essential\":false,\"environment\":[{\"name\":\"DD_SITE\",\"value\":\"datadoghq.com\"},{\"name\":\"ECS_FARGATE\",\"value\":\"true\"}],\"secrets\":[{\"name\":\"DD_API_KEY\",\"valueFrom\":\"arn:aws:secretsmanager:ap-south-1:516569236000:secret:datadog-api-key\"}]},{\"name\":\"envoy-proxy\",\"image\":\"envoyproxy/envoy:v1.28-latest\",\"cpu\":256,\"memory\":512,\"memoryReservation\":256,\"essential\":false,\"portMappings\":[{\"containerPort\":9901,\"protocol\":\"tcp\",\"name\":\"envoy-admin\"}],\"environment\":[{\"name\":\"ENVOY_UID\",\"value\":\"0\"}]}]"
+  },
+  {
+    "ParameterKey": "EnableLogging",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "LogGroupName",
+    "ParameterValue": "/ecs/my-multi-container-app"
+  },
+  {
+    "ParameterKey": "LogStreamPrefix",
+    "ParameterValue": "ecs"
+  },
+  {
+    "ParameterKey": "LogRetentionDays",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "LogDriverMode",
+    "ParameterValue": "non-blocking"
+  },
+  {
+    "ParameterKey": "EnableEfsVolume",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "EfsVolumeId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "EfsRootDirectory",
+    "ParameterValue": "/"
+  },
+  {
+    "ParameterKey": "EfsTransitEncryption",
+    "ParameterValue": "ENABLED"
+  },
+  {
+    "ParameterKey": "EphemeralStorageSize",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "NoFileUlimitSoft",
+    "ParameterValue": "65535"
+  },
+  {
+    "ParameterKey": "NoFileUlimitHard",
+    "ParameterValue": "65535"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "my-project"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "platform-team"
+  }
+]
+
