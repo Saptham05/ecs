@@ -1,5 +1,5 @@
 [
-  { "ParameterKey": "TaskDefinitionFamily", "ParameterValue": "diagnostic-service-dev" },
+  { "ParameterKey": "TaskDefinitionFamily", "ParameterValue": "test-diagnostic-service-dev" },
   { "ParameterKey": "LaunchType", "ParameterValue": "FARGATE" },
   { "ParameterKey": "TaskCpu", "ParameterValue": "256" },
   { "ParameterKey": "TaskMemory", "ParameterValue": "512" },
@@ -19,7 +19,7 @@
   { "ParameterKey": "Container1Port", "ParameterValue": "2000" },
   { "ParameterKey": "Container1Protocol", "ParameterValue": "tcp" },
   { "ParameterKey": "EnableLogging", "ParameterValue": "true" },
-  { "ParameterKey": "LogGroupName", "ParameterValue": "/ecs/diagnostic-service-dev" },
+  { "ParameterKey": "LogGroupName", "ParameterValue": "/ecs/test-diagnostic-service-dev" },
   { "ParameterKey": "LogStreamPrefix", "ParameterValue": "ecs" },
   { "ParameterKey": "LogRetentionDays", "ParameterValue": "7" },
   { "ParameterKey": "LogDriverMode", "ParameterValue": "non-blocking" },
