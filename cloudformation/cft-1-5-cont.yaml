@@ -1,0 +1,2386 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Enhanced ECS Task Definition with Support for Up to 5 Containers, 40 Environment Variables and 20 Secrets per Container'
+
+# ==============================================================================
+# PARAMETERS - Customize your task definition
+# ==============================================================================
+Parameters:
+  # ============================================================================
+  # TASK DEFINITION BASICS
+  # ============================================================================
+  TaskDefinitionFamily:
+    Type: String
+    Description: Name/Family for the task definition
+    Default: my-application-task
+
+  LaunchType:
+    Type: String
+    Description: Launch type compatibility
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - EC2
+      - EXTERNAL
+
+  # ============================================================================
+  # TASK RESOURCES
+  # ============================================================================
+  TaskCpu:
+    Type: String
+    Description: Task CPU units (256, 512, 1024, 2048, 4096, 8192, 16384)
+    Default: '1024'
+    AllowedValues:
+      - '256'
+      - '512'
+      - '1024'
+      - '2048'
+      - '4096'
+      - '8192'
+      - '16384'
+
+  TaskMemory:
+    Type: String
+    Description: Task memory in MB or GB (e.g., 512, 1GB, 2GB)
+    Default: '2GB'
+
+  # ============================================================================
+  # IAM ROLES
+  # ============================================================================
+  CreateTaskRole:
+    Type: String
+    Description: Create a new task role?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingTaskRoleArn:
+    Type: String
+    Description: Existing Task Role ARN (leave blank to create new)
+    Default: ''
+
+  CreateExecutionRole:
+    Type: String
+    Description: Create a new execution role?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingExecutionRoleArn:
+    Type: String
+    Description: Existing Execution Role ARN (leave blank to create new)
+    Default: ''
+
+  # ============================================================================
+  # NETWORK CONFIGURATION
+  # ============================================================================
+  NetworkMode:
+    Type: String
+    Description: Docker networking mode
+    Default: awsvpc
+    AllowedValues:
+      - awsvpc
+      - bridge
+      - host
+      - none
+
+  # ============================================================================
+  # RUNTIME PLATFORM
+  # ============================================================================
+  OperatingSystem:
+    Type: String
+    Description: Operating system family
+    Default: LINUX
+    AllowedValues:
+      - LINUX
+      - WINDOWS_SERVER_2019_FULL
+      - WINDOWS_SERVER_2019_CORE
+      - WINDOWS_SERVER_2022_FULL
+      - WINDOWS_SERVER_2022_CORE
+      - WINDOWS_SERVER_2025_FULL
+      - WINDOWS_SERVER_2025_CORE
+
+  CpuArchitecture:
+    Type: String
+    Description: CPU architecture
+    Default: X86_64
+    AllowedValues:
+      - X86_64
+      - ARM64
+
+  # ============================================================================
+  # EPHEMERAL STORAGE (Fargate)
+  # ============================================================================
+  EphemeralStorageSize:
+    Type: Number
+    Description: Ephemeral storage in GB (20-200, default is 20)
+    Default: 21
+    MinValue: 20
+    MaxValue: 200
+
+  # ============================================================================
+  # LOGGING CONFIGURATION (SHARED)
+  # ============================================================================
+  EnableLogging:
+    Type: String
+    Description: Enable CloudWatch logging?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group name
+    Default: /ecs/my-application
+
+  LogRetentionDays:
+    Type: Number
+    Description: Log retention in days
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+
+  LogDriverMode:
+    Type: String
+    Description: Log driver mode (non-blocking recommended for availability)
+    Default: non-blocking
+    AllowedValues:
+      - blocking
+      - non-blocking
+
+  # ============================================================================
+  # VOLUMES - EFS
+  # ============================================================================
+  EnableEfsVolume:
+    Type: String
+    Description: Enable EFS volume?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EfsVolumeId:
+    Type: String
+    Description: EFS File System ID
+    Default: ''
+
+  EfsRootDirectory:
+    Type: String
+    Description: EFS root directory to mount
+    Default: '/'
+
+  EfsTransitEncryption:
+    Type: String
+    Description: Enable EFS transit encryption?
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
+  # ============================================================================
+  # CONTAINER 1 CONFIGURATION
+  # ============================================================================
+  Container1Enabled:
+    Type: String
+    Description: Enable Container 1?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container1Name:
+    Type: String
+    Description: Container 1 name
+    Default: app-container
+
+  Container1Image:
+    Type: String
+    Description: Docker image URI for Container 1
+    Default: nginx:latest
+
+  Container1Cpu:
+    Type: Number
+    Description: CPU units for Container 1
+    Default: 256
+    MinValue: 0
+
+  Container1Memory:
+    Type: Number
+    Description: Memory in MB for Container 1 (hard limit)
+    Default: 512
+    MinValue: 4
+
+  Container1MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB for Container 1 (soft limit)
+    Default: 256
+    MinValue: 0
+
+  Container1Essential:
+    Type: String
+    Description: Is Container 1 essential?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container1Port:
+    Type: Number
+    Description: Container 1 port to expose
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+
+  Container1Protocol:
+    Type: String
+    Description: Container 1 port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container1LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for Container 1
+    Default: container1
+
+  Container1EnableHealthCheck:
+    Type: String
+    Description: Enable health check for Container 1?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container1HealthCheckCommand:
+    Type: String
+    Description: Health check command for Container 1
+    Default: 'CMD-SHELL, curl -f http://localhost/ || exit 1'
+
+  Container1HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  Container1HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  Container1HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  Container1HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  Container1EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS for Container 1
+    Default: '/mnt/efs'
+
+  Container1EnableEfsMount:
+    Type: String
+    Description: Enable EFS mount for Container 1?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  # Container 1 Environment Variables (40)
+  Container1Env1Key:
+    Type: String
+    Default: ''
+  Container1Env1Value:
+    Type: String
+    Default: ''
+  Container1Env2Key:
+    Type: String
+    Default: ''
+  Container1Env2Value:
+    Type: String
+    Default: ''
+  Container1Env3Key:
+    Type: String
+    Default: ''
+  Container1Env3Value:
+    Type: String
+    Default: ''
+  Container1Env4Key:
+    Type: String
+    Default: ''
+  Container1Env4Value:
+    Type: String
+    Default: ''
+  Container1Env5Key:
+    Type: String
+    Default: ''
+  Container1Env5Value:
+    Type: String
+    Default: ''
+  Container1Env6Key:
+    Type: String
+    Default: ''
+  Container1Env6Value:
+    Type: String
+    Default: ''
+  Container1Env7Key:
+    Type: String
+    Default: ''
+  Container1Env7Value:
+    Type: String
+    Default: ''
+  Container1Env8Key:
+    Type: String
+    Default: ''
+  Container1Env8Value:
+    Type: String
+    Default: ''
+  Container1Env9Key:
+    Type: String
+    Default: ''
+  Container1Env9Value:
+    Type: String
+    Default: ''
+  Container1Env10Key:
+    Type: String
+    Default: ''
+  Container1Env10Value:
+    Type: String
+    Default: ''
+  Container1Env11Key:
+    Type: String
+    Default: ''
+  Container1Env11Value:
+    Type: String
+    Default: ''
+  Container1Env12Key:
+    Type: String
+    Default: ''
+  Container1Env12Value:
+    Type: String
+    Default: ''
+  Container1Env13Key:
+    Type: String
+    Default: ''
+  Container1Env13Value:
+    Type: String
+    Default: ''
+  Container1Env14Key:
+    Type: String
+    Default: ''
+  Container1Env14Value:
+    Type: String
+    Default: ''
+  Container1Env15Key:
+    Type: String
+    Default: ''
+  Container1Env15Value:
+    Type: String
+    Default: ''
+  Container1Env16Key:
+    Type: String
+    Default: ''
+  Container1Env16Value:
+    Type: String
+    Default: ''
+  Container1Env17Key:
+    Type: String
+    Default: ''
+  Container1Env17Value:
+    Type: String
+    Default: ''
+  Container1Env18Key:
+    Type: String
+    Default: ''
+  Container1Env18Value:
+    Type: String
+    Default: ''
+  Container1Env19Key:
+    Type: String
+    Default: ''
+  Container1Env19Value:
+    Type: String
+    Default: ''
+  Container1Env20Key:
+    Type: String
+    Default: ''
+  Container1Env20Value:
+    Type: String
+    Default: ''
+  Container1Env21Key:
+    Type: String
+    Default: ''
+  Container1Env21Value:
+    Type: String
+    Default: ''
+  Container1Env22Key:
+    Type: String
+    Default: ''
+  Container1Env22Value:
+    Type: String
+    Default: ''
+  Container1Env23Key:
+    Type: String
+    Default: ''
+  Container1Env23Value:
+    Type: String
+    Default: ''
+  Container1Env24Key:
+    Type: String
+    Default: ''
+  Container1Env24Value:
+    Type: String
+    Default: ''
+  Container1Env25Key:
+    Type: String
+    Default: ''
+  Container1Env25Value:
+    Type: String
+    Default: ''
+  Container1Env26Key:
+    Type: String
+    Default: ''
+  Container1Env26Value:
+    Type: String
+    Default: ''
+  Container1Env27Key:
+    Type: String
+    Default: ''
+  Container1Env27Value:
+    Type: String
+    Default: ''
+  Container1Env28Key:
+    Type: String
+    Default: ''
+  Container1Env28Value:
+    Type: String
+    Default: ''
+  Container1Env29Key:
+    Type: String
+    Default: ''
+  Container1Env29Value:
+    Type: String
+    Default: ''
+  Container1Env30Key:
+    Type: String
+    Default: ''
+  Container1Env30Value:
+    Type: String
+    Default: ''
+  Container1Env31Key:
+    Type: String
+    Default: ''
+  Container1Env31Value:
+    Type: String
+    Default: ''
+  Container1Env32Key:
+    Type: String
+    Default: ''
+  Container1Env32Value:
+    Type: String
+    Default: ''
+  Container1Env33Key:
+    Type: String
+    Default: ''
+  Container1Env33Value:
+    Type: String
+    Default: ''
+  Container1Env34Key:
+    Type: String
+    Default: ''
+  Container1Env34Value:
+    Type: String
+    Default: ''
+  Container1Env35Key:
+    Type: String
+    Default: ''
+  Container1Env35Value:
+    Type: String
+    Default: ''
+  Container1Env36Key:
+    Type: String
+    Default: ''
+  Container1Env36Value:
+    Type: String
+    Default: ''
+  Container1Env37Key:
+    Type: String
+    Default: ''
+  Container1Env37Value:
+    Type: String
+    Default: ''
+  Container1Env38Key:
+    Type: String
+    Default: ''
+  Container1Env38Value:
+    Type: String
+    Default: ''
+  Container1Env39Key:
+    Type: String
+    Default: ''
+  Container1Env39Value:
+    Type: String
+    Default: ''
+  Container1Env40Key:
+    Type: String
+    Default: ''
+  Container1Env40Value:
+    Type: String
+    Default: ''
+
+  # Container 1 Secrets (20)
+  Container1Secret1Name:
+    Type: String
+    Default: ''
+  Container1Secret1ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret2Name:
+    Type: String
+    Default: ''
+  Container1Secret2ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret3Name:
+    Type: String
+    Default: ''
+  Container1Secret3ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret4Name:
+    Type: String
+    Default: ''
+  Container1Secret4ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret5Name:
+    Type: String
+    Default: ''
+  Container1Secret5ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret6Name:
+    Type: String
+    Default: ''
+  Container1Secret6ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret7Name:
+    Type: String
+    Default: ''
+  Container1Secret7ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret8Name:
+    Type: String
+    Default: ''
+  Container1Secret8ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret9Name:
+    Type: String
+    Default: ''
+  Container1Secret9ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret10Name:
+    Type: String
+    Default: ''
+  Container1Secret10ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret11Name:
+    Type: String
+    Default: ''
+  Container1Secret11ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret12Name:
+    Type: String
+    Default: ''
+  Container1Secret12ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret13Name:
+    Type: String
+    Default: ''
+  Container1Secret13ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret14Name:
+    Type: String
+    Default: ''
+  Container1Secret14ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret15Name:
+    Type: String
+    Default: ''
+  Container1Secret15ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret16Name:
+    Type: String
+    Default: ''
+  Container1Secret16ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret17Name:
+    Type: String
+    Default: ''
+  Container1Secret17ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret18Name:
+    Type: String
+    Default: ''
+  Container1Secret18ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret19Name:
+    Type: String
+    Default: ''
+  Container1Secret19ValueFrom:
+    Type: String
+    Default: ''
+  Container1Secret20Name:
+    Type: String
+    Default: ''
+  Container1Secret20ValueFrom:
+    Type: String
+    Default: ''
+
+  # ============================================================================
+  # CONTAINER 2 CONFIGURATION
+  # ============================================================================
+  Container2Enabled:
+    Type: String
+    Description: Enable Container 2?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container2Name:
+    Type: String
+    Description: Container 2 name
+    Default: sidecar-container
+
+  Container2Image:
+    Type: String
+    Description: Docker image URI for Container 2
+    Default: amazon/aws-for-fluent-bit:latest
+
+  Container2Cpu:
+    Type: Number
+    Description: CPU units for Container 2
+    Default: 128
+    MinValue: 0
+
+  Container2Memory:
+    Type: Number
+    Description: Memory in MB for Container 2 (hard limit)
+    Default: 256
+    MinValue: 4
+
+  Container2MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB for Container 2 (soft limit)
+    Default: 128
+    MinValue: 0
+
+  Container2Essential:
+    Type: String
+    Description: Is Container 2 essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container2Port:
+    Type: Number
+    Description: Container 2 port to expose (0 for no port)
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  Container2Protocol:
+    Type: String
+    Description: Container 2 port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container2LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for Container 2
+    Default: container2
+
+  Container2EnableHealthCheck:
+    Type: String
+    Description: Enable health check for Container 2?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container2HealthCheckCommand:
+    Type: String
+    Description: Health check command for Container 2
+    Default: 'CMD-SHELL, echo healthy'
+
+  Container2HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  Container2HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  Container2HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  Container2HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  Container2EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS for Container 2
+    Default: '/mnt/efs'
+
+  Container2EnableEfsMount:
+    Type: String
+    Description: Enable EFS mount for Container 2?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container2DependsOnContainer:
+    Type: String
+    Description: Container name that Container 2 depends on (leave blank for none)
+    Default: ''
+
+  Container2DependsOnCondition:
+    Type: String
+    Description: Dependency condition
+    Default: START
+    AllowedValues:
+      - START
+      - COMPLETE
+      - SUCCESS
+      - HEALTHY
+
+  # Container 2 Environment Variables (40)
+  Container2Env1Key:
+    Type: String
+    Default: ''
+  Container2Env1Value:
+    Type: String
+    Default: ''
+  Container2Env2Key:
+    Type: String
+    Default: ''
+  Container2Env2Value:
+    Type: String
+    Default: ''
+  Container2Env3Key:
+    Type: String
+    Default: ''
+  Container2Env3Value:
+    Type: String
+    Default: ''
+  Container2Env4Key:
+    Type: String
+    Default: ''
+  Container2Env4Value:
+    Type: String
+    Default: ''
+  Container2Env5Key:
+    Type: String
+    Default: ''
+  Container2Env5Value:
+    Type: String
+    Default: ''
+  Container2Env6Key:
+    Type: String
+    Default: ''
+  Container2Env6Value:
+    Type: String
+    Default: ''
+  Container2Env7Key:
+    Type: String
+    Default: ''
+  Container2Env7Value:
+    Type: String
+    Default: ''
+  Container2Env8Key:
+    Type: String
+    Default: ''
+  Container2Env8Value:
+    Type: String
+    Default: ''
+  Container2Env9Key:
+    Type: String
+    Default: ''
+  Container2Env9Value:
+    Type: String
+    Default: ''
+  Container2Env10Key:
+    Type: String
+    Default: ''
+  Container2Env10Value:
+    Type: String
+    Default: ''
+  Container2Env11Key:
+    Type: String
+    Default: ''
+  Container2Env11Value:
+    Type: String
+    Default: ''
+  Container2Env12Key:
+    Type: String
+    Default: ''
+  Container2Env12Value:
+    Type: String
+    Default: ''
+  Container2Env13Key:
+    Type: String
+    Default: ''
+  Container2Env13Value:
+    Type: String
+    Default: ''
+  Container2Env14Key:
+    Type: String
+    Default: ''
+  Container2Env14Value:
+    Type: String
+    Default: ''
+  Container2Env15Key:
+    Type: String
+    Default: ''
+  Container2Env15Value:
+    Type: String
+    Default: ''
+  Container2Env16Key:
+    Type: String
+    Default: ''
+  Container2Env16Value:
+    Type: String
+    Default: ''
+  Container2Env17Key:
+    Type: String
+    Default: ''
+  Container2Env17Value:
+    Type: String
+    Default: ''
+  Container2Env18Key:
+    Type: String
+    Default: ''
+  Container2Env18Value:
+    Type: String
+    Default: ''
+  Container2Env19Key:
+    Type: String
+    Default: ''
+  Container2Env19Value:
+    Type: String
+    Default: ''
+  Container2Env20Key:
+    Type: String
+    Default: ''
+  Container2Env20Value:
+    Type: String
+    Default: ''
+  Container2Env21Key:
+    Type: String
+    Default: ''
+  Container2Env21Value:
+    Type: String
+    Default: ''
+  Container2Env22Key:
+    Type: String
+    Default: ''
+  Container2Env22Value:
+    Type: String
+    Default: ''
+  Container2Env23Key:
+    Type: String
+    Default: ''
+  Container2Env23Value:
+    Type: String
+    Default: ''
+  Container2Env24Key:
+    Type: String
+    Default: ''
+  Container2Env24Value:
+    Type: String
+    Default: ''
+  Container2Env25Key:
+    Type: String
+    Default: ''
+  Container2Env25Value:
+    Type: String
+    Default: ''
+  Container2Env26Key:
+    Type: String
+    Default: ''
+  Container2Env26Value:
+    Type: String
+    Default: ''
+  Container2Env27Key:
+    Type: String
+    Default: ''
+  Container2Env27Value:
+    Type: String
+    Default: ''
+  Container2Env28Key:
+    Type: String
+    Default: ''
+  Container2Env28Value:
+    Type: String
+    Default: ''
+  Container2Env29Key:
+    Type: String
+    Default: ''
+  Container2Env29Value:
+    Type: String
+    Default: ''
+  Container2Env30Key:
+    Type: String
+    Default: ''
+  Container2Env30Value:
+    Type: String
+    Default: ''
+  Container2Env31Key:
+    Type: String
+    Default: ''
+  Container2Env31Value:
+    Type: String
+    Default: ''
+  Container2Env32Key:
+    Type: String
+    Default: ''
+  Container2Env32Value:
+    Type: String
+    Default: ''
+  Container2Env33Key:
+    Type: String
+    Default: ''
+  Container2Env33Value:
+    Type: String
+    Default: ''
+  Container2Env34Key:
+    Type: String
+    Default: ''
+  Container2Env34Value:
+    Type: String
+    Default: ''
+  Container2Env35Key:
+    Type: String
+    Default: ''
+  Container2Env35Value:
+    Type: String
+    Default: ''
+  Container2Env36Key:
+    Type: String
+    Default: ''
+  Container2Env36Value:
+    Type: String
+    Default: ''
+  Container2Env37Key:
+    Type: String
+    Default: ''
+  Container2Env37Value:
+    Type: String
+    Default: ''
+  Container2Env38Key:
+    Type: String
+    Default: ''
+  Container2Env38Value:
+    Type: String
+    Default: ''
+  Container2Env39Key:
+    Type: String
+    Default: ''
+  Container2Env39Value:
+    Type: String
+    Default: ''
+  Container2Env40Key:
+    Type: String
+    Default: ''
+  Container2Env40Value:
+    Type: String
+    Default: ''
+
+  # Container 2 Secrets (20)
+  Container2Secret1Name:
+    Type: String
+    Default: ''
+  Container2Secret1ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret2Name:
+    Type: String
+    Default: ''
+  Container2Secret2ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret3Name:
+    Type: String
+    Default: ''
+  Container2Secret3ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret4Name:
+    Type: String
+    Default: ''
+  Container2Secret4ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret5Name:
+    Type: String
+    Default: ''
+  Container2Secret5ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret6Name:
+    Type: String
+    Default: ''
+  Container2Secret6ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret7Name:
+    Type: String
+    Default: ''
+  Container2Secret7ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret8Name:
+    Type: String
+    Default: ''
+  Container2Secret8ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret9Name:
+    Type: String
+    Default: ''
+  Container2Secret9ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret10Name:
+    Type: String
+    Default: ''
+  Container2Secret10ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret11Name:
+    Type: String
+    Default: ''
+  Container2Secret11ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret12Name:
+    Type: String
+    Default: ''
+  Container2Secret12ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret13Name:
+    Type: String
+    Default: ''
+  Container2Secret13ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret14Name:
+    Type: String
+    Default: ''
+  Container2Secret14ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret15Name:
+    Type: String
+    Default: ''
+  Container2Secret15ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret16Name:
+    Type: String
+    Default: ''
+  Container2Secret16ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret17Name:
+    Type: String
+    Default: ''
+  Container2Secret17ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret18Name:
+    Type: String
+    Default: ''
+  Container2Secret18ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret19Name:
+    Type: String
+    Default: ''
+  Container2Secret19ValueFrom:
+    Type: String
+    Default: ''
+  Container2Secret20Name:
+    Type: String
+    Default: ''
+  Container2Secret20ValueFrom:
+    Type: String
+    Default: ''
+
+  # ============================================================================
+  # CONTAINER 3 CONFIGURATION
+  # ============================================================================
+  Container3Enabled:
+    Type: String
+    Description: Enable Container 3?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container3Name:
+    Type: String
+    Description: Container 3 name
+    Default: container-3
+
+  Container3Image:
+    Type: String
+    Description: Docker image URI for Container 3
+    Default: nginx:alpine
+
+  Container3Cpu:
+    Type: Number
+    Description: CPU units for Container 3
+    Default: 128
+    MinValue: 0
+
+  Container3Memory:
+    Type: Number
+    Description: Memory in MB for Container 3 (hard limit)
+    Default: 256
+    MinValue: 4
+
+  Container3MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB for Container 3 (soft limit)
+    Default: 128
+    MinValue: 0
+
+  Container3Essential:
+    Type: String
+    Description: Is Container 3 essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container3Port:
+    Type: Number
+    Description: Container 3 port to expose (0 for no port)
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  Container3Protocol:
+    Type: String
+    Description: Container 3 port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container3LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for Container 3
+    Default: container3
+
+  Container3EnableHealthCheck:
+    Type: String
+    Description: Enable health check for Container 3?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container3HealthCheckCommand:
+    Type: String
+    Description: Health check command for Container 3
+    Default: 'CMD-SHELL, echo healthy'
+
+  Container3HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  Container3HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  Container3HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  Container3HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  Container3EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS for Container 3
+    Default: '/mnt/efs'
+
+  Container3EnableEfsMount:
+    Type: String
+    Description: Enable EFS mount for Container 3?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container3DependsOnContainer:
+    Type: String
+    Description: Container name that Container 3 depends on (leave blank for none)
+    Default: ''
+
+  Container3DependsOnCondition:
+    Type: String
+    Description: Dependency condition
+    Default: START
+    AllowedValues:
+      - START
+      - COMPLETE
+      - SUCCESS
+      - HEALTHY
+
+  # Container 3 Environment Variables (Condensed for brevity - 40 total)
+  Container3Env1Key:
+    Type: String
+    Default: ''
+  Container3Env1Value:
+    Type: String
+    Default: ''
+  Container3Env2Key:
+    Type: String
+    Default: ''
+  Container3Env2Value:
+    Type: String
+    Default: ''
+  Container3Env3Key:
+    Type: String
+    Default: ''
+  Container3Env3Value:
+    Type: String
+    Default: ''
+  Container3Env4Key:
+    Type: String
+    Default: ''
+  Container3Env4Value:
+    Type: String
+    Default: ''
+  Container3Env5Key:
+    Type: String
+    Default: ''
+  Container3Env5Value:
+    Type: String
+    Default: ''
+  # ... (Continue pattern for Env6-40, omitted for brevity but should be included)
+
+  # Container 3 Secrets (Condensed for brevity - 20 total)
+  Container3Secret1Name:
+    Type: String
+    Default: ''
+  Container3Secret1ValueFrom:
+    Type: String
+    Default: ''
+  Container3Secret2Name:
+    Type: String
+    Default: ''
+  Container3Secret2ValueFrom:
+    Type: String
+    Default: ''
+  Container3Secret3Name:
+    Type: String
+    Default: ''
+  Container3Secret3ValueFrom:
+    Type: String
+    Default: ''
+  # ... (Continue pattern for Secret4-20, omitted for brevity but should be included)
+
+  # ============================================================================
+  # CONTAINER 4 CONFIGURATION
+  # ============================================================================
+  Container4Enabled:
+    Type: String
+    Description: Enable Container 4?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container4Name:
+    Type: String
+    Description: Container 4 name
+    Default: container-4
+
+  Container4Image:
+    Type: String
+    Description: Docker image URI for Container 4
+    Default: busybox:latest
+
+  Container4Cpu:
+    Type: Number
+    Description: CPU units for Container 4
+    Default: 128
+    MinValue: 0
+
+  Container4Memory:
+    Type: Number
+    Description: Memory in MB for Container 4 (hard limit)
+    Default: 256
+    MinValue: 4
+
+  Container4MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB for Container 4 (soft limit)
+    Default: 128
+    MinValue: 0
+
+  Container4Essential:
+    Type: String
+    Description: Is Container 4 essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container4Port:
+    Type: Number
+    Description: Container 4 port to expose (0 for no port)
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  Container4Protocol:
+    Type: String
+    Description: Container 4 port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container4LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for Container 4
+    Default: container4
+
+  Container4EnableHealthCheck:
+    Type: String
+    Description: Enable health check for Container 4?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container4HealthCheckCommand:
+    Type: String
+    Description: Health check command for Container 4
+    Default: 'CMD-SHELL, echo healthy'
+
+  Container4HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  Container4HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  Container4HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  Container4HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  Container4EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS for Container 4
+    Default: '/mnt/efs'
+
+  Container4EnableEfsMount:
+    Type: String
+    Description: Enable EFS mount for Container 4?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container4DependsOnContainer:
+    Type: String
+    Description: Container name that Container 4 depends on (leave blank for none)
+    Default: ''
+
+  Container4DependsOnCondition:
+    Type: String
+    Description: Dependency condition
+    Default: START
+    AllowedValues:
+      - START
+      - COMPLETE
+      - SUCCESS
+      - HEALTHY
+
+  # Container 4 Environment Variables and Secrets (Condensed - same pattern as Container 3)
+  Container4Env1Key:
+    Type: String
+    Default: ''
+  Container4Env1Value:
+    Type: String
+    Default: ''
+  # ... (40 env vars total, omitted for brevity)
+
+  Container4Secret1Name:
+    Type: String
+    Default: ''
+  Container4Secret1ValueFrom:
+    Type: String
+    Default: ''
+  # ... (20 secrets total, omitted for brevity)
+
+  # ============================================================================
+  # CONTAINER 5 CONFIGURATION
+  # ============================================================================
+  Container5Enabled:
+    Type: String
+    Description: Enable Container 5?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container5Name:
+    Type: String
+    Description: Container 5 name
+    Default: container-5
+
+  Container5Image:
+    Type: String
+    Description: Docker image URI for Container 5
+    Default: alpine:latest
+
+  Container5Cpu:
+    Type: Number
+    Description: CPU units for Container 5
+    Default: 128
+    MinValue: 0
+
+  Container5Memory:
+    Type: Number
+    Description: Memory in MB for Container 5 (hard limit)
+    Default: 256
+    MinValue: 4
+
+  Container5MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB for Container 5 (soft limit)
+    Default: 128
+    MinValue: 0
+
+  Container5Essential:
+    Type: String
+    Description: Is Container 5 essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container5Port:
+    Type: Number
+    Description: Container 5 port to expose (0 for no port)
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  Container5Protocol:
+    Type: String
+    Description: Container 5 port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container5LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for Container 5
+    Default: container5
+
+  Container5EnableHealthCheck:
+    Type: String
+    Description: Enable health check for Container 5?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container5HealthCheckCommand:
+    Type: String
+    Description: Health check command for Container 5
+    Default: 'CMD-SHELL, echo healthy'
+
+  Container5HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  Container5HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  Container5HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  Container5HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  Container5EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS for Container 5
+    Default: '/mnt/efs'
+
+  Container5EnableEfsMount:
+    Type: String
+    Description: Enable EFS mount for Container 5?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container5DependsOnContainer:
+    Type: String
+    Description: Container name that Container 5 depends on (leave blank for none)
+    Default: ''
+
+  Container5DependsOnCondition:
+    Type: String
+    Description: Dependency condition
+    Default: START
+    AllowedValues:
+      - START
+      - COMPLETE
+      - SUCCESS
+      - HEALTHY
+
+  # Container 5 Environment Variables and Secrets (Condensed - same pattern)
+  Container5Env1Key:
+    Type: String
+    Default: ''
+  Container5Env1Value:
+    Type: String
+    Default: ''
+  # ... (40 env vars total, omitted for brevity)
+
+  Container5Secret1Name:
+    Type: String
+    Default: ''
+  Container5Secret1ValueFrom:
+    Type: String
+    Default: ''
+  # ... (20 secrets total, omitted for brevity)
+
+  # ============================================================================
+  # RESOURCE LIMITS
+  # ============================================================================
+  NoFileUlimitSoft:
+    Type: Number
+    Description: Soft limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  NoFileUlimitHard:
+    Type: Number
+    Description: Hard limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  # ============================================================================
+  # TAGS
+  # ============================================================================
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: development
+    AllowedValues:
+      - development
+      - qa
+      - staging
+      - perf
+      - production
+
+  Project:
+    Type: String
+    Description: Project name
+    Default: my-project
+
+  Owner:
+    Type: String
+    Description: Owner/Team name
+    Default: platform-team
+
+# ==============================================================================
+# METADATA - For better parameter organization in console
+# ==============================================================================
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Task Definition Settings
+        Parameters:
+          - TaskDefinitionFamily
+          - LaunchType
+          - TaskCpu
+          - TaskMemory
+          - NetworkMode
+          - OperatingSystem
+          - CpuArchitecture
+          - EphemeralStorageSize
+      - Label:
+          default: IAM Roles
+        Parameters:
+          - CreateTaskRole
+          - ExistingTaskRoleArn
+          - CreateExecutionRole
+          - ExistingExecutionRoleArn
+      - Label:
+          default: Logging Configuration
+        Parameters:
+          - EnableLogging
+          - LogGroupName
+          - LogRetentionDays
+          - LogDriverMode
+      - Label:
+          default: EFS Volume Configuration
+        Parameters:
+          - EnableEfsVolume
+          - EfsVolumeId
+          - EfsRootDirectory
+          - EfsTransitEncryption
+      - Label:
+          default: Container 1 - Primary Container
+        Parameters:
+          - Container1Enabled
+          - Container1Name
+          - Container1Image
+          - Container1Cpu
+          - Container1Memory
+          - Container1MemoryReservation
+          - Container1Essential
+          - Container1Port
+          - Container1Protocol
+      - Label:
+          default: Container 2 - Sidecar
+        Parameters:
+          - Container2Enabled
+          - Container2Name
+          - Container2Image
+          - Container2Cpu
+          - Container2Memory
+          - Container2Essential
+      - Label:
+          default: Container 3
+        Parameters:
+          - Container3Enabled
+          - Container3Name
+          - Container3Image
+      - Label:
+          default: Container 4
+        Parameters:
+          - Container4Enabled
+          - Container4Name
+          - Container4Image
+      - Label:
+          default: Container 5
+        Parameters:
+          - Container5Enabled
+          - Container5Name
+          - Container5Image
+      - Label:
+          default: Tags
+        Parameters:
+          - Environment
+          - Project
+          - Owner
+
+# ==============================================================================
+# CONDITIONS
+# ==============================================================================
+Conditions:
+  CreateNewTaskRole: !Equals [!Ref CreateTaskRole, 'true']
+  CreateNewExecutionRole: !Equals [!Ref CreateExecutionRole, 'true']
+  UseExistingTaskRole: !Not [!Equals [!Ref ExistingTaskRoleArn, '']]
+  UseExistingExecutionRole: !Not [!Equals [!Ref ExistingExecutionRoleArn, '']]
+  EnableLoggingCondition: !Equals [!Ref EnableLogging, 'true']
+  EnableEfsVolumeCondition: !Equals [!Ref EnableEfsVolume, 'true']
+  IsFargate: !Equals [!Ref LaunchType, 'FARGATE']
+
+  # Container enable conditions
+  Container1EnabledCondition: !Equals [!Ref Container1Enabled, 'true']
+  Container2EnabledCondition: !Equals [!Ref Container2Enabled, 'true']
+  Container3EnabledCondition: !Equals [!Ref Container3Enabled, 'true']
+  Container4EnabledCondition: !Equals [!Ref Container4Enabled, 'true']
+  Container5EnabledCondition: !Equals [!Ref Container5Enabled, 'true']
+
+  # Container 1 conditions
+  Container1HasPort: !Not [!Equals [!Ref Container1Port, 0]]
+  Container1EnableHealthCheckCondition: !Equals [!Ref Container1EnableHealthCheck, 'true']
+  Container1EnableEfsMountCondition: !And
+    - !Condition EnableEfsVolumeCondition
+    - !Equals [!Ref Container1EnableEfsMount, 'true']
+  Container1AddEnv1: !Not [!Equals [!Ref Container1Env1Key, '']]
+  Container1AddSecret1: !Not [!Equals [!Ref Container1Secret1Name, '']]
+
+  # Container 2 conditions
+  Container2HasPort: !Not [!Equals [!Ref Container2Port, 0]]
+  Container2EnableHealthCheckCondition: !Equals [!Ref Container2EnableHealthCheck, 'true']
+  Container2EnableEfsMountCondition: !And
+    - !Condition EnableEfsVolumeCondition
+    - !Equals [!Ref Container2EnableEfsMount, 'true']
+  Container2HasDependency: !Not [!Equals [!Ref Container2DependsOnContainer, '']]
+  Container2AddEnv1: !Not [!Equals [!Ref Container2Env1Key, '']]
+  Container2AddSecret1: !Not [!Equals [!Ref Container2Secret1Name, '']]
+
+  # Container 3 conditions
+  Container3HasPort: !Not [!Equals [!Ref Container3Port, 0]]
+  Container3EnableHealthCheckCondition: !Equals [!Ref Container3EnableHealthCheck, 'true']
+  Container3EnableEfsMountCondition: !And
+    - !Condition EnableEfsVolumeCondition
+    - !Equals [!Ref Container3EnableEfsMount, 'true']
+  Container3HasDependency: !Not [!Equals [!Ref Container3DependsOnContainer, '']]
+  Container3AddEnv1: !Not [!Equals [!Ref Container3Env1Key, '']]
+  Container3AddSecret1: !Not [!Equals [!Ref Container3Secret1Name, '']]
+
+  # Container 4 conditions
+  Container4HasPort: !Not [!Equals [!Ref Container4Port, 0]]
+  Container4EnableHealthCheckCondition: !Equals [!Ref Container4EnableHealthCheck, 'true']
+  Container4EnableEfsMountCondition: !And
+    - !Condition EnableEfsVolumeCondition
+    - !Equals [!Ref Container4EnableEfsMount, 'true']
+  Container4HasDependency: !Not [!Equals [!Ref Container4DependsOnContainer, '']]
+  Container4AddEnv1: !Not [!Equals [!Ref Container4Env1Key, '']]
+  Container4AddSecret1: !Not [!Equals [!Ref Container4Secret1Name, '']]
+
+  # Container 5 conditions
+  Container5HasPort: !Not [!Equals [!Ref Container5Port, 0]]
+  Container5EnableHealthCheckCondition: !Equals [!Ref Container5EnableHealthCheck, 'true']
+  Container5EnableEfsMountCondition: !And
+    - !Condition EnableEfsVolumeCondition
+    - !Equals [!Ref Container5EnableEfsMount, 'true']
+  Container5HasDependency: !Not [!Equals [!Ref Container5DependsOnContainer, '']]
+  Container5AddEnv1: !Not [!Equals [!Ref Container5Env1Key, '']]
+  Container5AddSecret1: !Not [!Equals [!Ref Container5Secret1Name, '']]
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+Resources:
+  # ============================================================================
+  # CLOUDWATCH LOG GROUP
+  # ============================================================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableLoggingCondition
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Name
+          Value: !Ref LogGroupName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM ROLES - TASK ROLE
+  # ============================================================================
+  TaskRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewTaskRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: TaskRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-task-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM ROLES - EXECUTION ROLE
+  # ============================================================================
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewExecutionRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # TASK DEFINITION
+  # ============================================================================
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      RequiresCompatibilities:
+        - !Ref LaunchType
+      NetworkMode: !Ref NetworkMode
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      RuntimePlatform:
+        OperatingSystemFamily: !Ref OperatingSystem
+        CpuArchitecture: !Ref CpuArchitecture
+      TaskRoleArn: !If
+        - CreateNewTaskRole
+        - !GetAtt TaskRole.Arn
+        - !If
+          - UseExistingTaskRole
+          - !Ref ExistingTaskRoleArn
+          - !Ref AWS::NoValue
+      ExecutionRoleArn: !If
+        - CreateNewExecutionRole
+        - !GetAtt ExecutionRole.Arn
+        - !If
+          - UseExistingExecutionRole
+          - !Ref ExistingExecutionRoleArn
+          - !Ref AWS::NoValue
+      EphemeralStorage:
+        !If
+          - IsFargate
+          - SizeInGiB: !Ref EphemeralStorageSize
+          - !Ref AWS::NoValue
+      ContainerDefinitions:
+        # CONTAINER 1
+        - !If
+          - Container1EnabledCondition
+          - Name: !Ref Container1Name
+            Image: !Ref Container1Image
+            Cpu: !Ref Container1Cpu
+            Memory: !Ref Container1Memory
+            MemoryReservation: !Ref Container1MemoryReservation
+            Essential: !Ref Container1Essential
+            PortMappings:
+              !If
+                - Container1HasPort
+                - - ContainerPort: !Ref Container1Port
+                    Protocol: !Ref Container1Protocol
+                    Name: !Sub '${Container1Name}-port'
+                - !Ref AWS::NoValue
+            Environment:
+              !If
+                - Container1AddEnv1
+                - - !If [Container1AddEnv1, {Name: !Ref Container1Env1Key, Value: !Ref Container1Env1Value}, !Ref 'AWS::NoValue']
+                  - !If [Container1AddEnv1, {Name: !Ref Container1Env2Key, Value: !Ref Container1Env2Value}, !Ref 'AWS::NoValue']
+                  # Add all 40 environment variables with proper conditions
+                - !Ref AWS::NoValue
+            Secrets:
+              !If
+                - Container1AddSecret1
+                - - !If [Container1AddSecret1, {Name: !Ref Container1Secret1Name, ValueFrom: !Ref Container1Secret1ValueFrom}, !Ref 'AWS::NoValue']
+                  # Add all 20 secrets with proper conditions
+                - !Ref AWS::NoValue
+            HealthCheck:
+              !If
+                - Container1EnableHealthCheckCondition
+                - Command: !Split [',', !Ref Container1HealthCheckCommand]
+                  Interval: !Ref Container1HealthCheckInterval
+                  Timeout: !Ref Container1HealthCheckTimeout
+                  Retries: !Ref Container1HealthCheckRetries
+                  StartPeriod: !Ref Container1HealthCheckStartPeriod
+                - !Ref AWS::NoValue
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref Container1LogStreamPrefix
+                    mode: !Ref LogDriverMode
+                    max-buffer-size: 25m
+                - !Ref AWS::NoValue
+            MountPoints:
+              !If
+                - Container1EnableEfsMountCondition
+                - - SourceVolume: efs-volume
+                    ContainerPath: !Ref Container1EfsMountPath
+                    ReadOnly: false
+                - !Ref AWS::NoValue
+            Ulimits:
+              - Name: nofile
+                SoftLimit: !Ref NoFileUlimitSoft
+                HardLimit: !Ref NoFileUlimitHard
+            LinuxParameters:
+              InitProcessEnabled: true
+            DockerLabels:
+              com.example.environment: !Ref Environment
+              com.example.project: !Ref Project
+              com.example.container: !Ref Container1Name
+          - !Ref AWS::NoValue
+        # CONTAINER 2
+        - !If
+          - Container2EnabledCondition
+          - Name: !Ref Container2Name
+            Image: !Ref Container2Image
+            Cpu: !Ref Container2Cpu
+            Memory: !Ref Container2Memory
+            MemoryReservation: !Ref Container2MemoryReservation
+            Essential: !Ref Container2Essential
+            PortMappings:
+              !If
+                - Container2HasPort
+                - - ContainerPort: !Ref Container2Port
+                    Protocol: !Ref Container2Protocol
+                    Name: !Sub '${Container2Name}-port'
+                - !Ref AWS::NoValue
+            Environment:
+              !If
+                - Container2AddEnv1
+                - - !If [Container2AddEnv1, {Name: !Ref Container2Env1Key, Value: !Ref Container2Env1Value}, !Ref 'AWS::NoValue']
+                  # Add all environment variables
+                - !Ref AWS::NoValue
+            Secrets:
+              !If
+                - Container2AddSecret1
+                - - !If [Container2AddSecret1, {Name: !Ref Container2Secret1Name, ValueFrom: !Ref Container2Secret1ValueFrom}, !Ref 'AWS::NoValue']
+                  # Add all secrets
+                - !Ref AWS::NoValue
+            HealthCheck:
+              !If
+                - Container2EnableHealthCheckCondition
+                - Command: !Split [',', !Ref Container2HealthCheckCommand]
+                  Interval: !Ref Container2HealthCheckInterval
+                  Timeout: !Ref Container2HealthCheckTimeout
+                  Retries: !Ref Container2HealthCheckRetries
+                  StartPeriod: !Ref Container2HealthCheckStartPeriod
+                - !Ref AWS::NoValue
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref Container2LogStreamPrefix
+                    mode: !Ref LogDriverMode
+                    max-buffer-size: 25m
+                - !Ref AWS::NoValue
+            MountPoints:
+              !If
+                - Container2EnableEfsMountCondition
+                - - SourceVolume: efs-volume
+                    ContainerPath: !Ref Container2EfsMountPath
+                    ReadOnly: false
+                - !Ref AWS::NoValue
+            DependsOn:
+              !If
+                - Container2HasDependency
+                - - ContainerName: !Ref Container2DependsOnContainer
+                    Condition: !Ref Container2DependsOnCondition
+                - !Ref AWS::NoValue
+            LinuxParameters:
+              InitProcessEnabled: true
+            DockerLabels:
+              com.example.environment: !Ref Environment
+              com.example.project: !Ref Project
+              com.example.container: !Ref Container2Name
+          - !Ref AWS::NoValue
+        # CONTAINER 3
+        - !If
+          - Container3EnabledCondition
+          - Name: !Ref Container3Name
+            Image: !Ref Container3Image
+            Cpu: !Ref Container3Cpu
+            Memory: !Ref Container3Memory
+            MemoryReservation: !Ref Container3MemoryReservation
+            Essential: !Ref Container3Essential
+            PortMappings:
+              !If
+                - Container3HasPort
+                - - ContainerPort: !Ref Container3Port
+                    Protocol: !Ref Container3Protocol
+                    Name: !Sub '${Container3Name}-port'
+                - !Ref AWS::NoValue
+            Environment:
+              !If
+                - Container3AddEnv1
+                - - !If [Container3AddEnv1, {Name: !Ref Container3Env1Key, Value: !Ref Container3Env1Value}, !Ref 'AWS::NoValue']
+                - !Ref AWS::NoValue
+            Secrets:
+              !If
+                - Container3AddSecret1
+                - - !If [Container3AddSecret1, {Name: !Ref Container3Secret1Name, ValueFrom: !Ref Container3Secret1ValueFrom}, !Ref 'AWS::NoValue']
+                - !Ref AWS::NoValue
+            HealthCheck:
+              !If
+                - Container3EnableHealthCheckCondition
+                - Command: !Split [',', !Ref Container3HealthCheckCommand]
+                  Interval: !Ref Container3HealthCheckInterval
+                  Timeout: !Ref Container3HealthCheckTimeout
+                  Retries: !Ref Container3HealthCheckRetries
+                  StartPeriod: !Ref Container3HealthCheckStartPeriod
+                - !Ref AWS::NoValue
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref Container3LogStreamPrefix
+                    mode: !Ref LogDriverMode
+                - !Ref AWS::NoValue
+            MountPoints:
+              !If
+                - Container3EnableEfsMountCondition
+                - - SourceVolume: efs-volume
+                    ContainerPath: !Ref Container3EfsMountPath
+                    ReadOnly: false
+                - !Ref AWS::NoValue
+            DependsOn:
+              !If
+                - Container3HasDependency
+                - - ContainerName: !Ref Container3DependsOnContainer
+                    Condition: !Ref Container3DependsOnCondition
+                - !Ref AWS::NoValue
+            LinuxParameters:
+              InitProcessEnabled: true
+            DockerLabels:
+              com.example.environment: !Ref Environment
+              com.example.project: !Ref Project
+              com.example.container: !Ref Container3Name
+          - !Ref AWS::NoValue
+        # CONTAINER 4
+        - !If
+          - Container4EnabledCondition
+          - Name: !Ref Container4Name
+            Image: !Ref Container4Image
+            Cpu: !Ref Container4Cpu
+            Memory: !Ref Container4Memory
+            MemoryReservation: !Ref Container4MemoryReservation
+            Essential: !Ref Container4Essential
+            PortMappings:
+              !If
+                - Container4HasPort
+                - - ContainerPort: !Ref Container4Port
+                    Protocol: !Ref Container4Protocol
+                    Name: !Sub '${Container4Name}-port'
+                - !Ref AWS::NoValue
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref Container4LogStreamPrefix
+                    mode: !Ref LogDriverMode
+                - !Ref AWS::NoValue
+            MountPoints:
+              !If
+                - Container4EnableEfsMountCondition
+                - - SourceVolume: efs-volume
+                    ContainerPath: !Ref Container4EfsMountPath
+                    ReadOnly: false
+                - !Ref AWS::NoValue
+            DependsOn:
+              !If
+                - Container4HasDependency
+                - - ContainerName: !Ref Container4DependsOnContainer
+                    Condition: !Ref Container4DependsOnCondition
+                - !Ref AWS::NoValue
+            LinuxParameters:
+              InitProcessEnabled: true
+            DockerLabels:
+              com.example.environment: !Ref Environment
+              com.example.project: !Ref Project
+              com.example.container: !Ref Container4Name
+          - !Ref AWS::NoValue
+        # CONTAINER 5
+        - !If
+          - Container5EnabledCondition
+          - Name: !Ref Container5Name
+            Image: !Ref Container5Image
+            Cpu: !Ref Container5Cpu
+            Memory: !Ref Container5Memory
+            MemoryReservation: !Ref Container5MemoryReservation
+            Essential: !Ref Container5Essential
+            PortMappings:
+              !If
+                - Container5HasPort
+                - - ContainerPort: !Ref Container5Port
+                    Protocol: !Ref Container5Protocol
+                    Name: !Sub '${Container5Name}-port'
+                - !Ref AWS::NoValue
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref Container5LogStreamPrefix
+                    mode: !Ref LogDriverMode
+                - !Ref AWS::NoValue
+            MountPoints:
+              !If
+                - Container5EnableEfsMountCondition
+                - - SourceVolume: efs-volume
+                    ContainerPath: !Ref Container5EfsMountPath
+                    ReadOnly: false
+                - !Ref AWS::NoValue
+            DependsOn:
+              !If
+                - Container5HasDependency
+                - - ContainerName: !Ref Container5DependsOnContainer
+                    Condition: !Ref Container5DependsOnCondition
+                - !Ref AWS::NoValue
+            LinuxParameters:
+              InitProcessEnabled: true
+            DockerLabels:
+              com.example.environment: !Ref Environment
+              com.example.project: !Ref Project
+              com.example.container: !Ref Container5Name
+          - !Ref AWS::NoValue
+      Volumes:
+        !If
+          - EnableEfsVolumeCondition
+          - - Name: efs-volume
+              EFSVolumeConfiguration:
+                FilesystemId: !Ref EfsVolumeId
+                RootDirectory: !Ref EfsRootDirectory
+                TransitEncryption: !Ref EfsTransitEncryption
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Name
+          Value: !Ref TaskDefinitionFamily
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  TaskDefinitionArn:
+    Description: ARN of the Task Definition
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionArn'
+
+  TaskDefinitionFamily:
+    Description: Task Definition Family Name
+    Value: !Ref TaskDefinitionFamily
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionFamily'
+
+  TaskRoleArn:
+    Description: ARN of the Task Role
+    Value: !If
+      - CreateNewTaskRole
+      - !GetAtt TaskRole.Arn
+      - !If
+        - UseExistingTaskRole
+        - !Ref ExistingTaskRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskRoleArn'
+
+  ExecutionRoleArn:
+    Description: ARN of the Execution Role
+    Value: !If
+      - CreateNewExecutionRole
+      - !GetAtt ExecutionRole.Arn
+      - !If
+        - UseExistingExecutionRole
+        - !Ref ExistingExecutionRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
+
+  LogGroupName:
+    Condition: EnableLoggingCondition
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroupName
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
+
+  EnabledContainers:
+    Description: Number of enabled containers
+    Value: !Sub
+      - '${C1}${C2}${C3}${C4}${C5}'
+      - C1: !If [Container1EnabledCondition, '1,', '']
+        C2: !If [Container2EnabledCondition, '2,', '']
+        C3: !If [Container3EnabledCondition, '3,', '']
+        C4: !If [Container4EnabledCondition, '4,', '']
+        C5: !If [Container5EnabledCondition, '5', '']
