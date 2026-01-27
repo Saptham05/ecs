@@ -1,0 +1,938 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Versatile ECS Task Definition - Supports 1 to 10+ Containers with Simple or Advanced Configuration'
+
+# ==============================================================================
+# PARAMETERS
+# ==============================================================================
+Parameters:
+  # ============================================================================
+  # CONFIGURATION MODE
+  # ============================================================================
+  ConfigurationMode:
+    Type: String
+    Description: Use Simple mode for single container or Advanced mode for multi-container JSON
+    Default: Simple
+    AllowedValues:
+      - Simple
+      - Advanced
+
+  # ============================================================================
+  # TASK DEFINITION BASICS
+  # ============================================================================
+  TaskDefinitionFamily:
+    Type: String
+    Description: Name/Family for the task definition
+    Default: my-application-task
+
+  LaunchType:
+    Type: String
+    Description: Launch type compatibility
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - EC2
+      - EXTERNAL
+
+  # ============================================================================
+  # TASK RESOURCES
+  # ============================================================================
+  TaskCpu:
+    Type: String
+    Description: Task CPU units (256, 512, 1024, 2048, 4096, 8192, 16384)
+    Default: '512'
+    AllowedValues:
+      - '256'
+      - '512'
+      - '1024'
+      - '2048'
+      - '4096'
+      - '8192'
+      - '16384'
+
+  TaskMemory:
+    Type: String
+    Description: Task memory in MB or GB (e.g., 512, 1GB, 2GB)
+    Default: '1GB'
+
+  # ============================================================================
+  # IAM ROLES
+  # ============================================================================
+  CreateTaskRole:
+    Type: String
+    Description: Create a new task role?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingTaskRoleArn:
+    Type: String
+    Description: Existing Task Role ARN (leave blank to create new)
+    Default: ''
+
+  CreateExecutionRole:
+    Type: String
+    Description: Create a new execution role?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingExecutionRoleArn:
+    Type: String
+    Description: Existing Execution Role ARN (leave blank to create new)
+    Default: ''
+
+  # ============================================================================
+  # NETWORK CONFIGURATION
+  # ============================================================================
+  NetworkMode:
+    Type: String
+    Description: Docker networking mode
+    Default: awsvpc
+    AllowedValues:
+      - awsvpc
+      - bridge
+      - host
+      - none
+
+  # ============================================================================
+  # RUNTIME PLATFORM
+  # ============================================================================
+  OperatingSystem:
+    Type: String
+    Description: Operating system family
+    Default: LINUX
+    AllowedValues:
+      - LINUX
+      - WINDOWS_SERVER_2019_FULL
+      - WINDOWS_SERVER_2019_CORE
+      - WINDOWS_SERVER_2022_FULL
+      - WINDOWS_SERVER_2022_CORE
+
+  CpuArchitecture:
+    Type: String
+    Description: CPU architecture
+    Default: X86_64
+    AllowedValues:
+      - X86_64
+      - ARM64
+
+  # ============================================================================
+  # SIMPLE MODE - SINGLE CONTAINER CONFIGURATION
+  # ============================================================================
+  ContainerName:
+    Type: String
+    Description: '[Simple Mode] Container name'
+    Default: app-container
+
+  ContainerImage:
+    Type: String
+    Description: '[Simple Mode] Docker image URI'
+    Default: nginx:latest
+
+  ContainerCpu:
+    Type: Number
+    Description: '[Simple Mode] CPU units for container (0 = no reservation)'
+    Default: 0
+    MinValue: 0
+
+  ContainerMemory:
+    Type: Number
+    Description: '[Simple Mode] Memory in MB (hard limit)'
+    Default: 512
+    MinValue: 4
+
+  ContainerMemoryReservation:
+    Type: Number
+    Description: '[Simple Mode] Memory reservation in MB (soft limit, 0 = none)'
+    Default: 0
+    MinValue: 0
+
+  ContainerPort:
+    Type: Number
+    Description: '[Simple Mode] Container port to expose (0 = no port mapping)'
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+
+  ContainerProtocol:
+    Type: String
+    Description: '[Simple Mode] Port protocol'
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  # Environment Variables for Simple Mode (10 pairs)
+  EnvVar1Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 1 - Key'
+    Default: ''
+  EnvVar1Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 1 - Value'
+    Default: ''
+
+  EnvVar2Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 2 - Key'
+    Default: ''
+  EnvVar2Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 2 - Value'
+    Default: ''
+
+  EnvVar3Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 3 - Key'
+    Default: ''
+  EnvVar3Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 3 - Value'
+    Default: ''
+
+  EnvVar4Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 4 - Key'
+    Default: ''
+  EnvVar4Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 4 - Value'
+    Default: ''
+
+  EnvVar5Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 5 - Key'
+    Default: ''
+  EnvVar5Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 5 - Value'
+    Default: ''
+
+  EnvVar6Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 6 - Key'
+    Default: ''
+  EnvVar6Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 6 - Value'
+    Default: ''
+
+  EnvVar7Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 7 - Key'
+    Default: ''
+  EnvVar7Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 7 - Value'
+    Default: ''
+
+  EnvVar8Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 8 - Key'
+    Default: ''
+  EnvVar8Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 8 - Value'
+    Default: ''
+
+  EnvVar9Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 9 - Key'
+    Default: ''
+  EnvVar9Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 9 - Value'
+    Default: ''
+
+  EnvVar10Key:
+    Type: String
+    Description: '[Simple Mode] Environment variable 10 - Key'
+    Default: ''
+  EnvVar10Value:
+    Type: String
+    Description: '[Simple Mode] Environment variable 10 - Value'
+    Default: ''
+
+  # Secrets for Simple Mode (5 pairs)
+  Secret1Name:
+    Type: String
+    Description: '[Simple Mode] Secret 1 - Environment variable name'
+    Default: ''
+  Secret1ValueFrom:
+    Type: String
+    Description: '[Simple Mode] Secret 1 - ARN from Secrets Manager or SSM'
+    Default: ''
+
+  Secret2Name:
+    Type: String
+    Description: '[Simple Mode] Secret 2 - Environment variable name'
+    Default: ''
+  Secret2ValueFrom:
+    Type: String
+    Description: '[Simple Mode] Secret 2 - ARN from Secrets Manager or SSM'
+    Default: ''
+
+  Secret3Name:
+    Type: String
+    Description: '[Simple Mode] Secret 3 - Environment variable name'
+    Default: ''
+  Secret3ValueFrom:
+    Type: String
+    Description: '[Simple Mode] Secret 3 - ARN from Secrets Manager or SSM'
+    Default: ''
+
+  Secret4Name:
+    Type: String
+    Description: '[Simple Mode] Secret 4 - Environment variable name'
+    Default: ''
+  Secret4ValueFrom:
+    Type: String
+    Description: '[Simple Mode] Secret 4 - ARN from Secrets Manager or SSM'
+    Default: ''
+
+  Secret5Name:
+    Type: String
+    Description: '[Simple Mode] Secret 5 - Environment variable name'
+    Default: ''
+  Secret5ValueFrom:
+    Type: String
+    Description: '[Simple Mode] Secret 5 - ARN from Secrets Manager or SSM'
+    Default: ''
+
+  EnableHealthCheck:
+    Type: String
+    Description: '[Simple Mode] Enable container health check?'
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  HealthCheckCommand:
+    Type: String
+    Description: '[Simple Mode] Health check command'
+    Default: 'CMD-SHELL,curl -f http://localhost/ || exit 1'
+
+  HealthCheckInterval:
+    Type: Number
+    Description: '[Simple Mode] Health check interval in seconds'
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  HealthCheckTimeout:
+    Type: Number
+    Description: '[Simple Mode] Health check timeout in seconds'
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  HealthCheckRetries:
+    Type: Number
+    Description: '[Simple Mode] Number of retries before unhealthy'
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  HealthCheckStartPeriod:
+    Type: Number
+    Description: '[Simple Mode] Grace period before counting failures (seconds)'
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  # ============================================================================
+  # ADVANCED MODE - MULTI-CONTAINER JSON CONFIGURATION
+  # ============================================================================
+  ContainerDefinitionsJson:
+    Type: String
+    Description: |
+      [Advanced Mode] JSON array of container definitions. Supports unlimited containers.
+      Each container should include: name, image, cpu, memory, essential, portMappings, 
+      environment, secrets, healthCheck, dependsOn, etc.
+    Default: |
+      [
+        {
+          "name": "app-container",
+          "image": "nginx:latest",
+          "cpu": 256,
+          "memory": 512,
+          "essential": true,
+          "portMappings": [{"containerPort": 80, "protocol": "tcp"}]
+        }
+      ]
+
+  # ============================================================================
+  # LOGGING CONFIGURATION
+  # ============================================================================
+  EnableLogging:
+    Type: String
+    Description: Enable CloudWatch logging?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group name
+    Default: /ecs/my-application
+
+  LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix
+    Default: ecs
+
+  LogRetentionDays:
+    Type: Number
+    Description: Log retention in days
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+
+  LogDriverMode:
+    Type: String
+    Description: Log driver mode
+    Default: non-blocking
+    AllowedValues:
+      - blocking
+      - non-blocking
+
+  # ============================================================================
+  # VOLUMES - EFS
+  # ============================================================================
+  EnableEfsVolume:
+    Type: String
+    Description: Enable EFS volume?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EfsVolumeId:
+    Type: String
+    Description: EFS File System ID
+    Default: ''
+
+  EfsRootDirectory:
+    Type: String
+    Description: EFS root directory to mount
+    Default: '/'
+
+  EfsTransitEncryption:
+    Type: String
+    Description: Enable EFS transit encryption?
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
+  # ============================================================================
+  # EPHEMERAL STORAGE (Fargate)
+  # ============================================================================
+  EphemeralStorageSize:
+    Type: Number
+    Description: Ephemeral storage in GB (20-200)
+    Default: 21
+    MinValue: 20
+    MaxValue: 200
+
+  # ============================================================================
+  # RESOURCE LIMITS
+  # ============================================================================
+  NoFileUlimitSoft:
+    Type: Number
+    Description: Soft limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  NoFileUlimitHard:
+    Type: Number
+    Description: Hard limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  # ============================================================================
+  # TAGS
+  # ============================================================================
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+  Project:
+    Type: String
+    Description: Project name
+    Default: my-project
+
+  Owner:
+    Type: String
+    Description: Owner/Team name
+    Default: platform-team
+
+# ==============================================================================
+# CONDITIONS
+# ==============================================================================
+Conditions:
+  CreateNewTaskRole: !Equals [!Ref CreateTaskRole, 'true']
+  CreateNewExecutionRole: !Equals [!Ref CreateExecutionRole, 'true']
+  UseExistingTaskRole: !Not [!Equals [!Ref ExistingTaskRoleArn, '']]
+  UseExistingExecutionRole: !Not [!Equals [!Ref ExistingExecutionRoleArn, '']]
+  EnableLoggingCondition: !Equals [!Ref EnableLogging, 'true']
+  EnableEfsVolumeCondition: !Equals [!Ref EnableEfsVolume, 'true']
+  IsFargate: !Equals [!Ref LaunchType, 'FARGATE']
+  
+  # Mode conditions
+  IsSimpleMode: !Equals [!Ref ConfigurationMode, 'Simple']
+  IsAdvancedMode: !Equals [!Ref ConfigurationMode, 'Advanced']
+  
+  # Simple mode conditions
+  HasContainerPort: !Not [!Equals [!Ref ContainerPort, 0]]
+  HasMemoryReservation: !Not [!Equals [!Ref ContainerMemoryReservation, 0]]
+  EnableHealthCheckCondition: !Equals [!Ref EnableHealthCheck, 'true']
+  
+  # Environment variables conditions (Simple Mode)
+  HasEnvVar1: !Not [!Equals [!Ref EnvVar1Key, '']]
+  HasEnvVar2: !Not [!Equals [!Ref EnvVar2Key, '']]
+  HasEnvVar3: !Not [!Equals [!Ref EnvVar3Key, '']]
+  HasEnvVar4: !Not [!Equals [!Ref EnvVar4Key, '']]
+  HasEnvVar5: !Not [!Equals [!Ref EnvVar5Key, '']]
+  HasEnvVar6: !Not [!Equals [!Ref EnvVar6Key, '']]
+  HasEnvVar7: !Not [!Equals [!Ref EnvVar7Key, '']]
+  HasEnvVar8: !Not [!Equals [!Ref EnvVar8Key, '']]
+  HasEnvVar9: !Not [!Equals [!Ref EnvVar9Key, '']]
+  HasEnvVar10: !Not [!Equals [!Ref EnvVar10Key, '']]
+  
+  # Secrets conditions (Simple Mode)
+  HasSecret1: !Not [!Equals [!Ref Secret1Name, '']]
+  HasSecret2: !Not [!Equals [!Ref Secret2Name, '']]
+  HasSecret3: !Not [!Equals [!Ref Secret3Name, '']]
+  HasSecret4: !Not [!Equals [!Ref Secret4Name, '']]
+  HasSecret5: !Not [!Equals [!Ref Secret5Name, '']]
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+Resources:
+  # ============================================================================
+  # CLOUDWATCH LOG GROUP
+  # ============================================================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableLoggingCondition
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ============================================================================
+  # IAM ROLES - TASK ROLE
+  # ============================================================================
+  TaskRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewTaskRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: TaskRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-task-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM ROLES - EXECUTION ROLE
+  # ============================================================================
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewExecutionRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # LAMBDA FUNCTION FOR CONTAINER DEFINITION PROCESSING
+  # ============================================================================
+  ContainerDefinitionsProcessor:
+    Type: Custom::ContainerDefinitionsProcessor
+    Properties:
+      ServiceToken: !GetAtt ContainerDefinitionsProcessorFunction.Arn
+      ConfigurationMode: !Ref ConfigurationMode
+      # Simple Mode Parameters
+      ContainerName: !Ref ContainerName
+      ContainerImage: !Ref ContainerImage
+      ContainerCpu: !Ref ContainerCpu
+      ContainerMemory: !Ref ContainerMemory
+      ContainerMemoryReservation: !Ref ContainerMemoryReservation
+      ContainerPort: !Ref ContainerPort
+      ContainerProtocol: !Ref ContainerProtocol
+      EnvVars: !Sub |
+        ${EnvVar1Key}=${EnvVar1Value}
+        ${EnvVar2Key}=${EnvVar2Value}
+        ${EnvVar3Key}=${EnvVar3Value}
+        ${EnvVar4Key}=${EnvVar4Value}
+        ${EnvVar5Key}=${EnvVar5Value}
+        ${EnvVar6Key}=${EnvVar6Value}
+        ${EnvVar7Key}=${EnvVar7Value}
+        ${EnvVar8Key}=${EnvVar8Value}
+        ${EnvVar9Key}=${EnvVar9Value}
+        ${EnvVar10Key}=${EnvVar10Value}
+      Secrets: !Sub |
+        ${Secret1Name}=${Secret1ValueFrom}
+        ${Secret2Name}=${Secret2ValueFrom}
+        ${Secret3Name}=${Secret3ValueFrom}
+        ${Secret4Name}=${Secret4ValueFrom}
+        ${Secret5Name}=${Secret5ValueFrom}
+      EnableHealthCheck: !Ref EnableHealthCheck
+      HealthCheckCommand: !Ref HealthCheckCommand
+      HealthCheckInterval: !Ref HealthCheckInterval
+      HealthCheckTimeout: !Ref HealthCheckTimeout
+      HealthCheckRetries: !Ref HealthCheckRetries
+      HealthCheckStartPeriod: !Ref HealthCheckStartPeriod
+      # Advanced Mode Parameters
+      ContainerDefinitionsJson: !Ref ContainerDefinitionsJson
+      # Common Parameters
+      LogGroupName: !Ref LogGroupName
+      LogStreamPrefix: !Ref LogStreamPrefix
+      LogRegion: !Ref AWS::Region
+      LogDriverMode: !Ref LogDriverMode
+      NoFileUlimitSoft: !Ref NoFileUlimitSoft
+      NoFileUlimitHard: !Ref NoFileUlimitHard
+      EnableLogging: !Ref EnableLogging
+
+  ContainerDefinitionsProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${TaskDefinitionFamily}-container-processor'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt ContainerDefinitionsProcessorFunctionRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          import json
+          import cfnresponse
+          
+          def lambda_handler(event, context):
+              try:
+                  if event['RequestType'] == 'Delete':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                      return
+                  
+                  props = event['ResourceProperties']
+                  mode = props['ConfigurationMode']
+                  
+                  if mode == 'Simple':
+                      containers = build_simple_container(props)
+                  else:  # Advanced
+                      containers = json.loads(props['ContainerDefinitionsJson'])
+                  
+                  # Enhance all containers
+                  for container in containers:
+                      enhance_container(container, props)
+                  
+                  response_data = {
+                      'ContainerDefinitions': json.dumps(containers)
+                  }
+                  
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+          
+          def build_simple_container(props):
+              container = {
+                  'name': props['ContainerName'],
+                  'image': props['ContainerImage'],
+                  'cpu': int(props['ContainerCpu']),
+                  'memory': int(props['ContainerMemory']),
+                  'essential': True
+              }
+              
+              # Memory Reservation
+              if int(props['ContainerMemoryReservation']) > 0:
+                  container['memoryReservation'] = int(props['ContainerMemoryReservation'])
+              
+              # Port Mappings
+              if int(props['ContainerPort']) > 0:
+                  container['portMappings'] = [{
+                      'containerPort': int(props['ContainerPort']),
+                      'protocol': props['ContainerProtocol']
+                  }]
+              
+              # Environment Variables
+              env_vars = []
+              for line in props['EnvVars'].strip().split('\n'):
+                  if '=' in line and not line.startswith('='):
+                      key, value = line.split('=', 1)
+                      if key.strip():
+                          env_vars.append({'name': key.strip(), 'value': value.strip()})
+              if env_vars:
+                  container['environment'] = env_vars
+              
+              # Secrets
+              secrets = []
+              for line in props['Secrets'].strip().split('\n'):
+                  if '=' in line and not line.startswith('='):
+                      key, value = line.split('=', 1)
+                      if key.strip() and value.strip():
+                          secrets.append({'name': key.strip(), 'valueFrom': value.strip()})
+              if secrets:
+                  container['secrets'] = secrets
+              
+              # Health Check
+              if props['EnableHealthCheck'] == 'true':
+                  cmd_parts = props['HealthCheckCommand'].split(',')
+                  container['healthCheck'] = {
+                      'command': cmd_parts,
+                      'interval': int(props['HealthCheckInterval']),
+                      'timeout': int(props['HealthCheckTimeout']),
+                      'retries': int(props['HealthCheckRetries']),
+                      'startPeriod': int(props['HealthCheckStartPeriod'])
+                  }
+              
+              return [container]
+          
+          def enhance_container(container, props):
+              # Add ulimits
+              if 'ulimits' not in container:
+                  container['ulimits'] = []
+              container['ulimits'].append({
+                  'name': 'nofile',
+                  'softLimit': int(props['NoFileUlimitSoft']),
+                  'hardLimit': int(props['NoFileUlimitHard'])
+              })
+              
+              # Add LinuxParameters
+              if 'linuxParameters' not in container:
+                  container['linuxParameters'] = {}
+              container['linuxParameters']['initProcessEnabled'] = True
+              
+              # Add logging if enabled and not already configured
+              if props['EnableLogging'] == 'true' and 'logConfiguration' not in container:
+                  stream_prefix = props['LogStreamPrefix']
+                  if stream_prefix == 'ecs':
+                      stream_prefix = container.get('name', 'ecs')
+                  
+                  container['logConfiguration'] = {
+                      'logDriver': 'awslogs',
+                      'options': {
+                          'awslogs-group': props['LogGroupName'],
+                          'awslogs-region': props['LogRegion'],
+                          'awslogs-stream-prefix': stream_prefix,
+                          'mode': props['LogDriverMode'],
+                          'max-buffer-size': '25m'
+                      }
+                  }
+
+  ContainerDefinitionsProcessorFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # ============================================================================
+  # TASK DEFINITION
+  # ============================================================================
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: ContainerDefinitionsProcessor
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      RequiresCompatibilities:
+        - !Ref LaunchType
+      NetworkMode: !Ref NetworkMode
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      RuntimePlatform:
+        OperatingSystemFamily: !Ref OperatingSystem
+        CpuArchitecture: !Ref CpuArchitecture
+      TaskRoleArn: !If
+        - CreateNewTaskRole
+        - !GetAtt TaskRole.Arn
+        - !If
+          - UseExistingTaskRole
+          - !Ref ExistingTaskRoleArn
+          - !Ref AWS::NoValue
+      ExecutionRoleArn: !If
+        - CreateNewExecutionRole
+        - !GetAtt ExecutionRole.Arn
+        - !If
+          - UseExistingExecutionRole
+          - !Ref ExistingExecutionRoleArn
+          - !Ref AWS::NoValue
+      EphemeralStorage:
+        !If
+          - IsFargate
+          - SizeInGiB: !Ref EphemeralStorageSize
+          - !Ref AWS::NoValue
+      ContainerDefinitions: !GetAtt ContainerDefinitionsProcessor.ContainerDefinitions
+      Volumes:
+        !If
+          - EnableEfsVolumeCondition
+          - - Name: efs-volume
+              EFSVolumeConfiguration:
+                FilesystemId: !Ref EfsVolumeId
+                RootDirectory: !Ref EfsRootDirectory
+                TransitEncryption: !Ref EfsTransitEncryption
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Name
+          Value: !Ref TaskDefinitionFamily
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: ConfigurationMode
+          Value: !Ref ConfigurationMode
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  TaskDefinitionArn:
+    Description: ARN of the Task Definition
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionArn'
+
+  TaskDefinitionFamily:
+    Description: Task Definition Family Name
+    Value: !Ref TaskDefinitionFamily
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionFamily'
+
+  ConfigurationMode:
+    Description: Configuration mode used
+    Value: !Ref ConfigurationMode
+    Export:
+      Name: !Sub '${AWS::StackName}-ConfigurationMode'
+
+  TaskRoleArn:
+    Description: ARN of the Task Role
+    Value: !If
+      - CreateNewTaskRole
+      - !GetAtt TaskRole.Arn
+      - !If
+        - UseExistingTaskRole
+        - !Ref ExistingTaskRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskRoleArn'
+
+  ExecutionRoleArn:
+    Description: ARN of the Execution Role
+    Value: !If
+      - CreateNewExecutionRole
+      - !GetAtt ExecutionRole.Arn
+      - !If
+        - UseExistingExecutionRole
+        - !Ref ExistingExecutionRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
+
+  LogGroupName:
+    Condition: EnableLoggingCondition
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroupName
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
