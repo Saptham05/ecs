@@ -1,0 +1,1630 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Enhanced and Comprehensive ECS Task Definition with 40 Environment Variables, 20 Secrets Support, and Advanced Sidecar Configuration'
+
+# ==============================================================================
+# PARAMETERS - Customize your task definition
+# ==============================================================================
+Parameters:
+  # ============================================================================
+  # TASK DEFINITION BASICS
+  # ============================================================================
+  TaskDefinitionFamily:
+    Type: String
+    Description: Name/Family for the task definition
+    Default: my-application-task
+
+  LaunchType:
+    Type: String
+    Description: Launch type compatibility
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - EC2
+      - EXTERNAL
+
+  # ============================================================================
+  # TASK RESOURCES
+  # ============================================================================
+  TaskCpu:
+    Type: String
+    Description: Task CPU units (256, 512, 1024, 2048, 4096, 8192, 16384)
+    Default: '512'
+    AllowedValues:
+      - '256'
+      - '512'
+      - '1024'
+      - '2048'
+      - '4096'
+      - '8192'
+      - '16384'
+
+  TaskMemory:
+    Type: String
+    Description: Task memory in MB or GB (e.g., 512, 1GB, 2GB)
+    Default: '1GB'
+
+  # ============================================================================
+  # IAM ROLES
+  # ============================================================================
+  CreateTaskRole:
+    Type: String
+    Description: Create a new task role?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingTaskRoleArn:
+    Type: String
+    Description: Existing Task Role ARN (leave blank to create new)
+    Default: ''
+
+  CreateExecutionRole:
+    Type: String
+    Description: Create a new execution role?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ExistingExecutionRoleArn:
+    Type: String
+    Description: Existing Execution Role ARN (leave blank to create new)
+    Default: ''
+
+  # ============================================================================
+  # NETWORK CONFIGURATION
+  # ============================================================================
+  NetworkMode:
+    Type: String
+    Description: Docker networking mode
+    Default: awsvpc
+    AllowedValues:
+      - awsvpc
+      - bridge
+      - host
+      - none
+
+  # ============================================================================
+  # RUNTIME PLATFORM
+  # ============================================================================
+  OperatingSystem:
+    Type: String
+    Description: Operating system family
+    Default: LINUX
+    AllowedValues:
+      - LINUX
+      - WINDOWS_SERVER_2019_FULL
+      - WINDOWS_SERVER_2019_CORE
+      - WINDOWS_SERVER_2022_FULL
+      - WINDOWS_SERVER_2022_CORE
+      - WINDOWS_SERVER_2025_FULL
+      - WINDOWS_SERVER_2025_CORE
+
+  CpuArchitecture:
+    Type: String
+    Description: CPU architecture
+    Default: X86_64
+    AllowedValues:
+      - X86_64
+      - ARM64
+
+  # ============================================================================
+  # CONTAINER 1 - PRIMARY CONTAINER
+  # ============================================================================
+  Container1Name:
+    Type: String
+    Description: Primary container name
+    Default: app-container
+
+  Container1Image:
+    Type: String
+    Description: Docker image URI for primary container
+    Default: nginx:latest
+
+  Container1Cpu:
+    Type: Number
+    Description: CPU units for primary container
+    Default: 256
+    MinValue: 0
+
+  Container1Memory:
+    Type: Number
+    Description: Memory in MB for primary container (hard limit)
+    Default: 512
+    MinValue: 4
+
+  Container1MemoryReservation:
+    Type: Number
+    Description: Memory reservation in MB (soft limit)
+    Default: 256
+    MinValue: 0
+
+  Container1Essential:
+    Type: String
+    Description: Is this container essential?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  Container1Port:
+    Type: Number
+    Description: Container port to expose
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+
+  Container1PortName:
+    Type: String
+    Description: Name for the container port mapping
+    Default: ''
+
+  Container1Protocol:
+    Type: String
+    Description: Port protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Container1AppProtocol:
+    Type: String
+    Description: Application protocol (http, http2, grpc)
+    Default: ''
+    AllowedValues:
+      - ''
+      - http
+      - http2
+      - grpc
+
+  # ============================================================================
+  # LOGGING CONFIGURATION
+  # ============================================================================
+  EnableLogging:
+    Type: String
+    Description: Enable CloudWatch logging?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group name
+    Default: /ecs/my-application
+
+  LogStreamPrefix:
+    Type: String
+    Description: Log stream prefix
+    Default: ecs
+
+  LogRetentionDays:
+    Type: Number
+    Description: Log retention in days
+    Default: 7
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1827
+      - 3653
+
+  LogDriverMode:
+    Type: String
+    Description: Log driver mode (non-blocking recommended for availability)
+    Default: non-blocking
+    AllowedValues:
+      - blocking
+      - non-blocking
+
+  EnableLogGroupAutoCreate:
+    Type: String
+    Description: Enable auto-creation of log group?
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  # ============================================================================
+  # HEALTH CHECK
+  # ============================================================================
+  EnableHealthCheck:
+    Type: String
+    Description: Enable container health check?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  HealthCheckCommand:
+    Type: String
+    Description: Health check command (e.g., CMD-SHELL, curl -f http://localhost/ || exit 1)
+    Default: 'CMD-SHELL, curl -f http://localhost/ || exit 1'
+
+  HealthCheckInterval:
+    Type: Number
+    Description: Health check interval in seconds
+    Default: 30
+    MinValue: 5
+    MaxValue: 300
+
+  HealthCheckTimeout:
+    Type: Number
+    Description: Health check timeout in seconds
+    Default: 5
+    MinValue: 2
+    MaxValue: 60
+
+  HealthCheckRetries:
+    Type: Number
+    Description: Number of retries before unhealthy
+    Default: 3
+    MinValue: 1
+    MaxValue: 10
+
+  HealthCheckStartPeriod:
+    Type: Number
+    Description: Grace period before counting failures (seconds)
+    Default: 0
+    MinValue: 0
+    MaxValue: 300
+
+  # ============================================================================
+  # ENVIRONMENT VARIABLES (40 total)
+  # ============================================================================
+  Environment1Key:
+    Type: String
+    Description: Environment variable 1 key
+    Default: ''
+  Environment1Value:
+    Type: String
+    Description: Environment variable 1 value
+    Default: ''
+
+  Environment2Key:
+    Type: String
+    Description: Environment variable 2 key
+    Default: ''
+  Environment2Value:
+    Type: String
+    Description: Environment variable 2 value
+    Default: ''
+
+  Environment3Key:
+    Type: String
+    Description: Environment variable 3 key
+    Default: ''
+  Environment3Value:
+    Type: String
+    Description: Environment variable 3 value
+    Default: ''
+
+  Environment4Key:
+    Type: String
+    Description: Environment variable 4 key
+    Default: ''
+  Environment4Value:
+    Type: String
+    Description: Environment variable 4 value
+    Default: ''
+
+  Environment5Key:
+    Type: String
+    Description: Environment variable 5 key
+    Default: ''
+  Environment5Value:
+    Type: String
+    Description: Environment variable 5 value
+    Default: ''
+
+  Environment6Key:
+    Type: String
+    Description: Environment variable 6 key
+    Default: ''
+  Environment6Value:
+    Type: String
+    Description: Environment variable 6 value
+    Default: ''
+
+  Environment7Key:
+    Type: String
+    Description: Environment variable 7 key
+    Default: ''
+  Environment7Value:
+    Type: String
+    Description: Environment variable 7 value
+    Default: ''
+
+  Environment8Key:
+    Type: String
+    Description: Environment variable 8 key
+    Default: ''
+  Environment8Value:
+    Type: String
+    Description: Environment variable 8 value
+    Default: ''
+
+  Environment9Key:
+    Type: String
+    Description: Environment variable 9 key
+    Default: ''
+  Environment9Value:
+    Type: String
+    Description: Environment variable 9 value
+    Default: ''
+
+  Environment10Key:
+    Type: String
+    Description: Environment variable 10 key
+    Default: ''
+  Environment10Value:
+    Type: String
+    Description: Environment variable 10 value
+    Default: ''
+
+  Environment11Key:
+    Type: String
+    Description: Environment variable 11 key
+    Default: ''
+  Environment11Value:
+    Type: String
+    Description: Environment variable 11 value
+    Default: ''
+
+  Environment12Key:
+    Type: String
+    Description: Environment variable 12 key
+    Default: ''
+  Environment12Value:
+    Type: String
+    Description: Environment variable 12 value
+    Default: ''
+
+  Environment13Key:
+    Type: String
+    Description: Environment variable 13 key
+    Default: ''
+  Environment13Value:
+    Type: String
+    Description: Environment variable 13 value
+    Default: ''
+
+  Environment14Key:
+    Type: String
+    Description: Environment variable 14 key
+    Default: ''
+  Environment14Value:
+    Type: String
+    Description: Environment variable 14 value
+    Default: ''
+
+  Environment15Key:
+    Type: String
+    Description: Environment variable 15 key
+    Default: ''
+  Environment15Value:
+    Type: String
+    Description: Environment variable 15 value
+    Default: ''
+
+  Environment16Key:
+    Type: String
+    Description: Environment variable 16 key
+    Default: ''
+  Environment16Value:
+    Type: String
+    Description: Environment variable 16 value
+    Default: ''
+
+  Environment17Key:
+    Type: String
+    Description: Environment variable 17 key
+    Default: ''
+  Environment17Value:
+    Type: String
+    Description: Environment variable 17 value
+    Default: ''
+
+  Environment18Key:
+    Type: String
+    Description: Environment variable 18 key
+    Default: ''
+  Environment18Value:
+    Type: String
+    Description: Environment variable 18 value
+    Default: ''
+
+  Environment19Key:
+    Type: String
+    Description: Environment variable 19 key
+    Default: ''
+  Environment19Value:
+    Type: String
+    Description: Environment variable 19 value
+    Default: ''
+
+  Environment20Key:
+    Type: String
+    Description: Environment variable 20 key
+    Default: ''
+  Environment20Value:
+    Type: String
+    Description: Environment variable 20 value
+    Default: ''
+
+  Environment21Key:
+    Type: String
+    Description: Environment variable 21 key
+    Default: ''
+  Environment21Value:
+    Type: String
+    Description: Environment variable 21 value
+    Default: ''
+
+  Environment22Key:
+    Type: String
+    Description: Environment variable 22 key
+    Default: ''
+  Environment22Value:
+    Type: String
+    Description: Environment variable 22 value
+    Default: ''
+
+  Environment23Key:
+    Type: String
+    Description: Environment variable 23 key
+    Default: ''
+  Environment23Value:
+    Type: String
+    Description: Environment variable 23 value
+    Default: ''
+
+  Environment24Key:
+    Type: String
+    Description: Environment variable 24 key
+    Default: ''
+  Environment24Value:
+    Type: String
+    Description: Environment variable 24 value
+    Default: ''
+
+  Environment25Key:
+    Type: String
+    Description: Environment variable 25 key
+    Default: ''
+  Environment25Value:
+    Type: String
+    Description: Environment variable 25 value
+    Default: ''
+
+  Environment26Key:
+    Type: String
+    Description: Environment variable 26 key
+    Default: ''
+  Environment26Value:
+    Type: String
+    Description: Environment variable 26 value
+    Default: ''
+
+  Environment27Key:
+    Type: String
+    Description: Environment variable 27 key
+    Default: ''
+  Environment27Value:
+    Type: String
+    Description: Environment variable 27 value
+    Default: ''
+
+  Environment28Key:
+    Type: String
+    Description: Environment variable 28 key
+    Default: ''
+  Environment28Value:
+    Type: String
+    Description: Environment variable 28 value
+    Default: ''
+
+  Environment29Key:
+    Type: String
+    Description: Environment variable 29 key
+    Default: ''
+  Environment29Value:
+    Type: String
+    Description: Environment variable 29 value
+    Default: ''
+
+  Environment30Key:
+    Type: String
+    Description: Environment variable 30 key
+    Default: ''
+  Environment30Value:
+    Type: String
+    Description: Environment variable 30 value
+    Default: ''
+
+  Environment31Key:
+    Type: String
+    Description: Environment variable 31 key
+    Default: ''
+  Environment31Value:
+    Type: String
+    Description: Environment variable 31 value
+    Default: ''
+
+  Environment32Key:
+    Type: String
+    Description: Environment variable 32 key
+    Default: ''
+  Environment32Value:
+    Type: String
+    Description: Environment variable 32 value
+    Default: ''
+
+  Environment33Key:
+    Type: String
+    Description: Environment variable 33 key
+    Default: ''
+  Environment33Value:
+    Type: String
+    Description: Environment variable 33 value
+    Default: ''
+
+  Environment34Key:
+    Type: String
+    Description: Environment variable 34 key
+    Default: ''
+  Environment34Value:
+    Type: String
+    Description: Environment variable 34 value
+    Default: ''
+
+  Environment35Key:
+    Type: String
+    Description: Environment variable 35 key
+    Default: ''
+  Environment35Value:
+    Type: String
+    Description: Environment variable 35 value
+    Default: ''
+
+  Environment36Key:
+    Type: String
+    Description: Environment variable 36 key
+    Default: ''
+  Environment36Value:
+    Type: String
+    Description: Environment variable 36 value
+    Default: ''
+
+  Environment37Key:
+    Type: String
+    Description: Environment variable 37 key
+    Default: ''
+  Environment37Value:
+    Type: String
+    Description: Environment variable 37 value
+    Default: ''
+
+  Environment38Key:
+    Type: String
+    Description: Environment variable 38 key
+    Default: ''
+  Environment38Value:
+    Type: String
+    Description: Environment variable 38 value
+    Default: ''
+
+  Environment39Key:
+    Type: String
+    Description: Environment variable 39 key
+    Default: ''
+  Environment39Value:
+    Type: String
+    Description: Environment variable 39 value
+    Default: ''
+
+  Environment40Key:
+    Type: String
+    Description: Environment variable 40 key
+    Default: ''
+  Environment40Value:
+    Type: String
+    Description: Environment variable 40 value
+    Default: ''
+
+  # ============================================================================
+  # SECRETS (from Secrets Manager or Parameter Store) - 20 total
+  # ============================================================================
+  Secret1Name:
+    Type: String
+    Description: Secret 1 environment variable name
+    Default: ''
+  Secret1ValueFrom:
+    Type: String
+    Description: Secret 1 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret2Name:
+    Type: String
+    Description: Secret 2 environment variable name
+    Default: ''
+  Secret2ValueFrom:
+    Type: String
+    Description: Secret 2 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret3Name:
+    Type: String
+    Description: Secret 3 environment variable name
+    Default: ''
+  Secret3ValueFrom:
+    Type: String
+    Description: Secret 3 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret4Name:
+    Type: String
+    Description: Secret 4 environment variable name
+    Default: ''
+  Secret4ValueFrom:
+    Type: String
+    Description: Secret 4 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret5Name:
+    Type: String
+    Description: Secret 5 environment variable name
+    Default: ''
+  Secret5ValueFrom:
+    Type: String
+    Description: Secret 5 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret6Name:
+    Type: String
+    Description: Secret 6 environment variable name
+    Default: ''
+  Secret6ValueFrom:
+    Type: String
+    Description: Secret 6 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret7Name:
+    Type: String
+    Description: Secret 7 environment variable name
+    Default: ''
+  Secret7ValueFrom:
+    Type: String
+    Description: Secret 7 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret8Name:
+    Type: String
+    Description: Secret 8 environment variable name
+    Default: ''
+  Secret8ValueFrom:
+    Type: String
+    Description: Secret 8 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret9Name:
+    Type: String
+    Description: Secret 9 environment variable name
+    Default: ''
+  Secret9ValueFrom:
+    Type: String
+    Description: Secret 9 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret10Name:
+    Type: String
+    Description: Secret 10 environment variable name
+    Default: ''
+  Secret10ValueFrom:
+    Type: String
+    Description: Secret 10 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret11Name:
+    Type: String
+    Description: Secret 11 environment variable name
+    Default: ''
+  Secret11ValueFrom:
+    Type: String
+    Description: Secret 11 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret12Name:
+    Type: String
+    Description: Secret 12 environment variable name
+    Default: ''
+  Secret12ValueFrom:
+    Type: String
+    Description: Secret 12 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret13Name:
+    Type: String
+    Description: Secret 13 environment variable name
+    Default: ''
+  Secret13ValueFrom:
+    Type: String
+    Description: Secret 13 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret14Name:
+    Type: String
+    Description: Secret 14 environment variable name
+    Default: ''
+  Secret14ValueFrom:
+    Type: String
+    Description: Secret 14 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret15Name:
+    Type: String
+    Description: Secret 15 environment variable name
+    Default: ''
+  Secret15ValueFrom:
+    Type: String
+    Description: Secret 15 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret16Name:
+    Type: String
+    Description: Secret 16 environment variable name
+    Default: ''
+  Secret16ValueFrom:
+    Type: String
+    Description: Secret 16 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret17Name:
+    Type: String
+    Description: Secret 17 environment variable name
+    Default: ''
+  Secret17ValueFrom:
+    Type: String
+    Description: Secret 17 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret18Name:
+    Type: String
+    Description: Secret 18 environment variable name
+    Default: ''
+  Secret18ValueFrom:
+    Type: String
+    Description: Secret 18 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret19Name:
+    Type: String
+    Description: Secret 19 environment variable name
+    Default: ''
+  Secret19ValueFrom:
+    Type: String
+    Description: Secret 19 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  Secret20Name:
+    Type: String
+    Description: Secret 20 environment variable name
+    Default: ''
+  Secret20ValueFrom:
+    Type: String
+    Description: Secret 20 ARN (Secrets Manager or SSM Parameter Store)
+    Default: ''
+
+  # ============================================================================
+  # VOLUMES - EFS
+  # ============================================================================
+  EnableEfsVolume:
+    Type: String
+    Description: Enable EFS volume?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EfsVolumeId:
+    Type: String
+    Description: EFS File System ID
+    Default: ''
+
+  EfsRootDirectory:
+    Type: String
+    Description: EFS root directory to mount
+    Default: '/'
+
+  EfsMountPath:
+    Type: String
+    Description: Container path to mount EFS
+    Default: '/mnt/efs'
+
+  EfsTransitEncryption:
+    Type: String
+    Description: Enable EFS transit encryption?
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
+  # ============================================================================
+  # EPHEMERAL STORAGE (Fargate)
+  # ============================================================================
+  EphemeralStorageSize:
+    Type: Number
+    Description: Ephemeral storage in GB (20-200, default is 20)
+    Default: 21
+    MinValue: 20
+    MaxValue: 200
+
+  # ============================================================================
+  # CONTAINER 2 - SIDECAR (OPTIONAL)
+  # ============================================================================
+  EnableSidecar:
+    Type: String
+    Description: Enable sidecar container?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  SidecarName:
+    Type: String
+    Description: Sidecar container name
+    Default: sidecar-container
+
+  SidecarImage:
+    Type: String
+    Description: Docker image URI for sidecar
+    Default: amazon/aws-for-fluent-bit:latest
+
+  SidecarCpu:
+    Type: Number
+    Description: CPU units for sidecar
+    Default: 128
+    MinValue: 0
+
+  SidecarMemory:
+    Type: Number
+    Description: Memory in MB for sidecar
+    Default: 256
+    MinValue: 4
+
+  SidecarEssential:
+    Type: String
+    Description: Is sidecar essential?
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  SidecarCommand:
+    Type: String
+    Description: Command override for sidecar (comma-separated, leave blank for default)
+    Default: ''
+
+  SidecarPort1:
+    Type: Number
+    Description: Sidecar container port 1
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  SidecarPort1Name:
+    Type: String
+    Description: Name for sidecar port 1
+    Default: ''
+
+  SidecarPort1Protocol:
+    Type: String
+    Description: Sidecar port 1 protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  SidecarPort2:
+    Type: Number
+    Description: Sidecar container port 2 (optional)
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+
+  SidecarPort2Name:
+    Type: String
+    Description: Name for sidecar port 2
+    Default: ''
+
+  SidecarPort2Protocol:
+    Type: String
+    Description: Sidecar port 2 protocol
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  SidecarLogGroupName:
+    Type: String
+    Description: Separate log group for sidecar (leave blank to use main log group)
+    Default: ''
+
+  SidecarLogStreamPrefix:
+    Type: String
+    Description: Log stream prefix for sidecar
+    Default: sidecar
+
+  SidecarDependsOnCondition:
+    Type: String
+    Description: Dependency condition for sidecar
+    Default: START
+    AllowedValues:
+      - START
+      - COMPLETE
+      - SUCCESS
+      - HEALTHY
+
+  # ============================================================================
+  # SIDECAR ENVIRONMENT VARIABLES (10 total for sidecar)
+  # ============================================================================
+  SidecarEnv1Key:
+    Type: String
+    Description: Sidecar environment variable 1 key
+    Default: ''
+  SidecarEnv1Value:
+    Type: String
+    Description: Sidecar environment variable 1 value
+    Default: ''
+
+  SidecarEnv2Key:
+    Type: String
+    Description: Sidecar environment variable 2 key
+    Default: ''
+  SidecarEnv2Value:
+    Type: String
+    Description: Sidecar environment variable 2 value
+    Default: ''
+
+  SidecarEnv3Key:
+    Type: String
+    Description: Sidecar environment variable 3 key
+    Default: ''
+  SidecarEnv3Value:
+    Type: String
+    Description: Sidecar environment variable 3 value
+    Default: ''
+
+  SidecarEnv4Key:
+    Type: String
+    Description: Sidecar environment variable 4 key
+    Default: ''
+  SidecarEnv4Value:
+    Type: String
+    Description: Sidecar environment variable 4 value
+    Default: ''
+
+  SidecarEnv5Key:
+    Type: String
+    Description: Sidecar environment variable 5 key
+    Default: ''
+  SidecarEnv5Value:
+    Type: String
+    Description: Sidecar environment variable 5 value
+    Default: ''
+
+  SidecarEnv6Key:
+    Type: String
+    Description: Sidecar environment variable 6 key
+    Default: ''
+  SidecarEnv6Value:
+    Type: String
+    Description: Sidecar environment variable 6 value
+    Default: ''
+
+  SidecarEnv7Key:
+    Type: String
+    Description: Sidecar environment variable 7 key
+    Default: ''
+  SidecarEnv7Value:
+    Type: String
+    Description: Sidecar environment variable 7 value
+    Default: ''
+
+  SidecarEnv8Key:
+    Type: String
+    Description: Sidecar environment variable 8 key
+    Default: ''
+  SidecarEnv8Value:
+    Type: String
+    Description: Sidecar environment variable 8 value
+    Default: ''
+
+  SidecarEnv9Key:
+    Type: String
+    Description: Sidecar environment variable 9 key
+    Default: ''
+  SidecarEnv9Value:
+    Type: String
+    Description: Sidecar environment variable 9 value
+    Default: ''
+
+  SidecarEnv10Key:
+    Type: String
+    Description: Sidecar environment variable 10 key
+    Default: ''
+  SidecarEnv10Value:
+    Type: String
+    Description: Sidecar environment variable 10 value
+    Default: ''
+
+  # ============================================================================
+  # RESOURCE LIMITS
+  # ============================================================================
+  NoFileUlimitSoft:
+    Type: Number
+    Description: Soft limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  NoFileUlimitHard:
+    Type: Number
+    Description: Hard limit for open files
+    Default: 65535
+    MinValue: 1024
+
+  # ============================================================================
+  # TAGS
+  # ============================================================================
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: development
+    AllowedValues:
+      - development
+      - qa
+      - staging
+      - perf
+      - production
+
+  Project:
+    Type: String
+    Description: Project name
+    Default: my-project
+
+  Owner:
+    Type: String
+    Description: Owner/Team name
+    Default: platform-team
+
+# ==============================================================================
+# CONDITIONS
+# ==============================================================================
+Conditions:
+  CreateNewTaskRole: !Equals [!Ref CreateTaskRole, 'true']
+  CreateNewExecutionRole: !Equals [!Ref CreateExecutionRole, 'true']
+  UseExistingTaskRole: !Not [!Equals [!Ref ExistingTaskRoleArn, '']]
+  UseExistingExecutionRole: !Not [!Equals [!Ref ExistingExecutionRoleArn, '']]
+  EnableLoggingCondition: !Equals [!Ref EnableLogging, 'true']
+  EnableHealthCheckCondition: !Equals [!Ref EnableHealthCheck, 'true']
+  
+  # Environment variable conditions (40 total)
+  AddEnvironment1: !Not [!Equals [!Ref Environment1Key, '']]
+  AddEnvironment2: !Not [!Equals [!Ref Environment2Key, '']]
+  AddEnvironment3: !Not [!Equals [!Ref Environment3Key, '']]
+  AddEnvironment4: !Not [!Equals [!Ref Environment4Key, '']]
+  AddEnvironment5: !Not [!Equals [!Ref Environment5Key, '']]
+  AddEnvironment6: !Not [!Equals [!Ref Environment6Key, '']]
+  AddEnvironment7: !Not [!Equals [!Ref Environment7Key, '']]
+  AddEnvironment8: !Not [!Equals [!Ref Environment8Key, '']]
+  AddEnvironment9: !Not [!Equals [!Ref Environment9Key, '']]
+  AddEnvironment10: !Not [!Equals [!Ref Environment10Key, '']]
+  AddEnvironment11: !Not [!Equals [!Ref Environment11Key, '']]
+  AddEnvironment12: !Not [!Equals [!Ref Environment12Key, '']]
+  AddEnvironment13: !Not [!Equals [!Ref Environment13Key, '']]
+  AddEnvironment14: !Not [!Equals [!Ref Environment14Key, '']]
+  AddEnvironment15: !Not [!Equals [!Ref Environment15Key, '']]
+  AddEnvironment16: !Not [!Equals [!Ref Environment16Key, '']]
+  AddEnvironment17: !Not [!Equals [!Ref Environment17Key, '']]
+  AddEnvironment18: !Not [!Equals [!Ref Environment18Key, '']]
+  AddEnvironment19: !Not [!Equals [!Ref Environment19Key, '']]
+  AddEnvironment20: !Not [!Equals [!Ref Environment20Key, '']]
+  AddEnvironment21: !Not [!Equals [!Ref Environment21Key, '']]
+  AddEnvironment22: !Not [!Equals [!Ref Environment22Key, '']]
+  AddEnvironment23: !Not [!Equals [!Ref Environment23Key, '']]
+  AddEnvironment24: !Not [!Equals [!Ref Environment24Key, '']]
+  AddEnvironment25: !Not [!Equals [!Ref Environment25Key, '']]
+  AddEnvironment26: !Not [!Equals [!Ref Environment26Key, '']]
+  AddEnvironment27: !Not [!Equals [!Ref Environment27Key, '']]
+  AddEnvironment28: !Not [!Equals [!Ref Environment28Key, '']]
+  AddEnvironment29: !Not [!Equals [!Ref Environment29Key, '']]
+  AddEnvironment30: !Not [!Equals [!Ref Environment30Key, '']]
+  AddEnvironment31: !Not [!Equals [!Ref Environment31Key, '']]
+  AddEnvironment32: !Not [!Equals [!Ref Environment32Key, '']]
+  AddEnvironment33: !Not [!Equals [!Ref Environment33Key, '']]
+  AddEnvironment34: !Not [!Equals [!Ref Environment34Key, '']]
+  AddEnvironment35: !Not [!Equals [!Ref Environment35Key, '']]
+  AddEnvironment36: !Not [!Equals [!Ref Environment36Key, '']]
+  AddEnvironment37: !Not [!Equals [!Ref Environment37Key, '']]
+  AddEnvironment38: !Not [!Equals [!Ref Environment38Key, '']]
+  AddEnvironment39: !Not [!Equals [!Ref Environment39Key, '']]
+  AddEnvironment40: !Not [!Equals [!Ref Environment40Key, '']]
+  
+  # Secret conditions (20 total)
+  AddSecret1: !Not [!Equals [!Ref Secret1Name, '']]
+  AddSecret2: !Not [!Equals [!Ref Secret2Name, '']]
+  AddSecret3: !Not [!Equals [!Ref Secret3Name, '']]
+  AddSecret4: !Not [!Equals [!Ref Secret4Name, '']]
+  AddSecret5: !Not [!Equals [!Ref Secret5Name, '']]
+  AddSecret6: !Not [!Equals [!Ref Secret6Name, '']]
+  AddSecret7: !Not [!Equals [!Ref Secret7Name, '']]
+  AddSecret8: !Not [!Equals [!Ref Secret8Name, '']]
+  AddSecret9: !Not [!Equals [!Ref Secret9Name, '']]
+  AddSecret10: !Not [!Equals [!Ref Secret10Name, '']]
+  AddSecret11: !Not [!Equals [!Ref Secret11Name, '']]
+  AddSecret12: !Not [!Equals [!Ref Secret12Name, '']]
+  AddSecret13: !Not [!Equals [!Ref Secret13Name, '']]
+  AddSecret14: !Not [!Equals [!Ref Secret14Name, '']]
+  AddSecret15: !Not [!Equals [!Ref Secret15Name, '']]
+  AddSecret16: !Not [!Equals [!Ref Secret16Name, '']]
+  AddSecret17: !Not [!Equals [!Ref Secret17Name, '']]
+  AddSecret18: !Not [!Equals [!Ref Secret18Name, '']]
+  AddSecret19: !Not [!Equals [!Ref Secret19Name, '']]
+  AddSecret20: !Not [!Equals [!Ref Secret20Name, '']]
+
+  # Sidecar environment variables
+  AddSidecarEnv1: !Not [!Equals [!Ref SidecarEnv1Key, '']]
+  AddSidecarEnv2: !Not [!Equals [!Ref SidecarEnv2Key, '']]
+  AddSidecarEnv3: !Not [!Equals [!Ref SidecarEnv3Key, '']]
+  AddSidecarEnv4: !Not [!Equals [!Ref SidecarEnv4Key, '']]
+  AddSidecarEnv5: !Not [!Equals [!Ref SidecarEnv5Key, '']]
+  AddSidecarEnv6: !Not [!Equals [!Ref SidecarEnv6Key, '']]
+  AddSidecarEnv7: !Not [!Equals [!Ref SidecarEnv7Key, '']]
+  AddSidecarEnv8: !Not [!Equals [!Ref SidecarEnv8Key, '']]
+  AddSidecarEnv9: !Not [!Equals [!Ref SidecarEnv9Key, '']]
+  AddSidecarEnv10: !Not [!Equals [!Ref SidecarEnv10Key, '']]
+  
+  EnableEfsVolumeCondition: !Equals [!Ref EnableEfsVolume, 'true']
+  EnableSidecarCondition: !Equals [!Ref EnableSidecar, 'true']
+  IsFargate: !Equals [!Ref LaunchType, 'FARGATE']
+  HasSidecarCommand: !Not [!Equals [!Ref SidecarCommand, '']]
+  HasSidecarPort1: !Not [!Equals [!Ref SidecarPort1, 0]]
+  HasSidecarPort2: !Not [!Equals [!Ref SidecarPort2, 0]]
+  HasSeparateSidecarLogGroup: !Not [!Equals [!Ref SidecarLogGroupName, '']]
+  HasContainer1PortName: !Not [!Equals [!Ref Container1PortName, '']]
+  HasContainer1AppProtocol: !Not [!Equals [!Ref Container1AppProtocol, '']]
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+Resources:
+  # ============================================================================
+  # CLOUDWATCH LOG GROUP - Main
+  # ============================================================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableLoggingCondition
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ============================================================================
+  # CLOUDWATCH LOG GROUP - Sidecar (if separate)
+  # ============================================================================
+  SidecarLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: HasSeparateSidecarLogGroup
+    Properties:
+      LogGroupName: !Ref SidecarLogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ============================================================================
+  # IAM ROLES - TASK ROLE
+  # ============================================================================
+  TaskRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewTaskRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: TaskRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-task-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM ROLES - EXECUTION ROLE
+  # ============================================================================
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewExecutionRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TaskDefinitionFamily}-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # TASK DEFINITION
+  # ============================================================================
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      RequiresCompatibilities:
+        - !Ref LaunchType
+      NetworkMode: !Ref NetworkMode
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      RuntimePlatform:
+        OperatingSystemFamily: !Ref OperatingSystem
+        CpuArchitecture: !Ref CpuArchitecture
+      TaskRoleArn: !If
+        - CreateNewTaskRole
+        - !GetAtt TaskRole.Arn
+        - !If
+          - UseExistingTaskRole
+          - !Ref ExistingTaskRoleArn
+          - !Ref AWS::NoValue
+      ExecutionRoleArn: !If
+        - CreateNewExecutionRole
+        - !GetAtt ExecutionRole.Arn
+        - !If
+          - UseExistingExecutionRole
+          - !Ref ExistingExecutionRoleArn
+          - !Ref AWS::NoValue
+      EphemeralStorage:
+        !If
+          - IsFargate
+          - SizeInGiB: !Ref EphemeralStorageSize
+          - !Ref AWS::NoValue
+      ContainerDefinitions:
+        - Name: !Ref Container1Name
+          Image: !Ref Container1Image
+          Cpu: !Ref Container1Cpu
+          Memory: !Ref Container1Memory
+          MemoryReservation: !Ref Container1MemoryReservation
+          Essential: !Ref Container1Essential
+          PortMappings:
+            - ContainerPort: !Ref Container1Port
+              Protocol: !Ref Container1Protocol
+              Name: !If
+                - HasContainer1PortName
+                - !Ref Container1PortName
+                - !Ref AWS::NoValue
+              AppProtocol: !If
+                - HasContainer1AppProtocol
+                - !Ref Container1AppProtocol
+                - !Ref AWS::NoValue
+          Environment:
+            Fn::If:
+              - AddEnvironment1
+              - - !If [AddEnvironment1, {Name: !Ref Environment1Key, Value: !Ref Environment1Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment2, {Name: !Ref Environment2Key, Value: !Ref Environment2Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment3, {Name: !Ref Environment3Key, Value: !Ref Environment3Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment4, {Name: !Ref Environment4Key, Value: !Ref Environment4Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment5, {Name: !Ref Environment5Key, Value: !Ref Environment5Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment6, {Name: !Ref Environment6Key, Value: !Ref Environment6Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment7, {Name: !Ref Environment7Key, Value: !Ref Environment7Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment8, {Name: !Ref Environment8Key, Value: !Ref Environment8Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment9, {Name: !Ref Environment9Key, Value: !Ref Environment9Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment10, {Name: !Ref Environment10Key, Value: !Ref Environment10Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment11, {Name: !Ref Environment11Key, Value: !Ref Environment11Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment12, {Name: !Ref Environment12Key, Value: !Ref Environment12Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment13, {Name: !Ref Environment13Key, Value: !Ref Environment13Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment14, {Name: !Ref Environment14Key, Value: !Ref Environment14Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment15, {Name: !Ref Environment15Key, Value: !Ref Environment15Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment16, {Name: !Ref Environment16Key, Value: !Ref Environment16Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment17, {Name: !Ref Environment17Key, Value: !Ref Environment17Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment18, {Name: !Ref Environment18Key, Value: !Ref Environment18Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment19, {Name: !Ref Environment19Key, Value: !Ref Environment19Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment20, {Name: !Ref Environment20Key, Value: !Ref Environment20Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment21, {Name: !Ref Environment21Key, Value: !Ref Environment21Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment22, {Name: !Ref Environment22Key, Value: !Ref Environment22Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment23, {Name: !Ref Environment23Key, Value: !Ref Environment23Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment24, {Name: !Ref Environment24Key, Value: !Ref Environment24Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment25, {Name: !Ref Environment25Key, Value: !Ref Environment25Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment26, {Name: !Ref Environment26Key, Value: !Ref Environment26Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment27, {Name: !Ref Environment27Key, Value: !Ref Environment27Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment28, {Name: !Ref Environment28Key, Value: !Ref Environment28Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment29, {Name: !Ref Environment29Key, Value: !Ref Environment29Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment30, {Name: !Ref Environment30Key, Value: !Ref Environment30Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment31, {Name: !Ref Environment31Key, Value: !Ref Environment31Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment32, {Name: !Ref Environment32Key, Value: !Ref Environment32Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment33, {Name: !Ref Environment33Key, Value: !Ref Environment33Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment34, {Name: !Ref Environment34Key, Value: !Ref Environment34Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment35, {Name: !Ref Environment35Key, Value: !Ref Environment35Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment36, {Name: !Ref Environment36Key, Value: !Ref Environment36Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment37, {Name: !Ref Environment37Key, Value: !Ref Environment37Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment38, {Name: !Ref Environment38Key, Value: !Ref Environment38Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment39, {Name: !Ref Environment39Key, Value: !Ref Environment39Value}, !Ref 'AWS::NoValue']
+                - !If [AddEnvironment40, {Name: !Ref Environment40Key, Value: !Ref Environment40Value}, !Ref 'AWS::NoValue']
+              - !Ref 'AWS::NoValue'
+          Secrets:
+            Fn::If:
+              - AddSecret1
+              - - !If [AddSecret1, {Name: !Ref Secret1Name, ValueFrom: !Ref Secret1ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret2, {Name: !Ref Secret2Name, ValueFrom: !Ref Secret2ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret3, {Name: !Ref Secret3Name, ValueFrom: !Ref Secret3ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret4, {Name: !Ref Secret4Name, ValueFrom: !Ref Secret4ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret5, {Name: !Ref Secret5Name, ValueFrom: !Ref Secret5ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret6, {Name: !Ref Secret6Name, ValueFrom: !Ref Secret6ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret7, {Name: !Ref Secret7Name, ValueFrom: !Ref Secret7ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret8, {Name: !Ref Secret8Name, ValueFrom: !Ref Secret8ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret9, {Name: !Ref Secret9Name, ValueFrom: !Ref Secret9ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret10, {Name: !Ref Secret10Name, ValueFrom: !Ref Secret10ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret11, {Name: !Ref Secret11Name, ValueFrom: !Ref Secret11ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret12, {Name: !Ref Secret12Name, ValueFrom: !Ref Secret12ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret13, {Name: !Ref Secret13Name, ValueFrom: !Ref Secret13ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret14, {Name: !Ref Secret14Name, ValueFrom: !Ref Secret14ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret15, {Name: !Ref Secret15Name, ValueFrom: !Ref Secret15ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret16, {Name: !Ref Secret16Name, ValueFrom: !Ref Secret16ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret17, {Name: !Ref Secret17Name, ValueFrom: !Ref Secret17ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret18, {Name: !Ref Secret18Name, ValueFrom: !Ref Secret18ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret19, {Name: !Ref Secret19Name, ValueFrom: !Ref Secret19ValueFrom}, !Ref 'AWS::NoValue']
+                - !If [AddSecret20, {Name: !Ref Secret20Name, ValueFrom: !Ref Secret20ValueFrom}, !Ref 'AWS::NoValue']
+              - !Ref 'AWS::NoValue'
+          HealthCheck:
+            !If
+              - EnableHealthCheckCondition
+              - Command: !Split [',', !Ref HealthCheckCommand]
+                Interval: !Ref HealthCheckInterval
+                Timeout: !Ref HealthCheckTimeout
+                Retries: !Ref HealthCheckRetries
+                StartPeriod: !Ref HealthCheckStartPeriod
+              - !Ref AWS::NoValue
+          DependsOn:
+            !If
+              - EnableSidecarCondition
+              - - ContainerName: !Ref SidecarName
+                  Condition: !Ref SidecarDependsOnCondition
+              - !Ref AWS::NoValue
+          LogConfiguration:
+            !If
+              - EnableLoggingCondition
+              - LogDriver: awslogs
+                Options:
+                  awslogs-group: !Ref LogGroupName
+                  awslogs-region: !Ref AWS::Region
+                  awslogs-stream-prefix: !Ref LogStreamPrefix
+                  mode: !Ref LogDriverMode
+                  max-buffer-size: 25m
+                  awslogs-create-group: !Ref EnableLogGroupAutoCreate
+              - !Ref AWS::NoValue
+          MountPoints:
+            !If
+              - EnableEfsVolumeCondition
+              - - SourceVolume: efs-volume
+                  ContainerPath: !Ref EfsMountPath
+                  ReadOnly: false
+              - !Ref AWS::NoValue
+          Ulimits:
+            - Name: nofile
+              SoftLimit: !Ref NoFileUlimitSoft
+              HardLimit: !Ref NoFileUlimitHard
+          LinuxParameters:
+            InitProcessEnabled: true
+          DockerLabels:
+            com.example.environment: !Ref Environment
+            com.example.project: !Ref Project
+        - !If
+          - EnableSidecarCondition
+          - Name: !Ref SidecarName
+            Image: !Ref SidecarImage
+            Cpu: !Ref SidecarCpu
+            Memory: !Ref SidecarMemory
+            Essential: !Ref SidecarEssential
+            Command: !If
+              - HasSidecarCommand
+              - !Split [',', !Ref SidecarCommand]
+              - !Ref AWS::NoValue
+            PortMappings:
+              Fn::If:
+                - HasSidecarPort1
+                - - !If
+                    - HasSidecarPort1
+                    - ContainerPort: !Ref SidecarPort1
+                      Protocol: !Ref SidecarPort1Protocol
+                      Name: !If
+                        - HasSidecarPort1
+                        - !Ref SidecarPort1Name
+                        - !Ref AWS::NoValue
+                    - !Ref AWS::NoValue
+                  - !If
+                    - HasSidecarPort2
+                    - ContainerPort: !Ref SidecarPort2
+                      Protocol: !Ref SidecarPort2Protocol
+                      Name: !If
+                        - HasSidecarPort2
+                        - !Ref SidecarPort2Name
+                        - !Ref AWS::NoValue
+                    - !Ref AWS::NoValue
+                - !Ref AWS::NoValue
+            Environment:
+              Fn::If:
+                - AddSidecarEnv1
+                - - !If [AddSidecarEnv1, {Name: !Ref SidecarEnv1Key, Value: !Ref SidecarEnv1Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv2, {Name: !Ref SidecarEnv2Key, Value: !Ref SidecarEnv2Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv3, {Name: !Ref SidecarEnv3Key, Value: !Ref SidecarEnv3Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv4, {Name: !Ref SidecarEnv4Key, Value: !Ref SidecarEnv4Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv5, {Name: !Ref SidecarEnv5Key, Value: !Ref SidecarEnv5Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv6, {Name: !Ref SidecarEnv6Key, Value: !Ref SidecarEnv6Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv7, {Name: !Ref SidecarEnv7Key, Value: !Ref SidecarEnv7Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv8, {Name: !Ref SidecarEnv8Key, Value: !Ref SidecarEnv8Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv9, {Name: !Ref SidecarEnv9Key, Value: !Ref SidecarEnv9Value}, !Ref 'AWS::NoValue']
+                  - !If [AddSidecarEnv10, {Name: !Ref SidecarEnv10Key, Value: !Ref SidecarEnv10Value}, !Ref 'AWS::NoValue']
+                - !Ref 'AWS::NoValue'
+            LogConfiguration:
+              !If
+                - EnableLoggingCondition
+                - LogDriver: awslogs
+                  Options:
+                    awslogs-group: !If
+                      - HasSeparateSidecarLogGroup
+                      - !Ref SidecarLogGroupName
+                      - !Ref LogGroupName
+                    awslogs-region: !Ref AWS::Region
+                    awslogs-stream-prefix: !Ref SidecarLogStreamPrefix
+                    mode: !Ref LogDriverMode
+                    max-buffer-size: 25m
+                    awslogs-create-group: !Ref EnableLogGroupAutoCreate
+                - !Ref AWS::NoValue
+          - !Ref AWS::NoValue
+      Volumes:
+        !If
+          - EnableEfsVolumeCondition
+          - - Name: efs-volume
+              EFSVolumeConfiguration:
+                FilesystemId: !Ref EfsVolumeId
+                RootDirectory: !Ref EfsRootDirectory
+                TransitEncryption: !Ref EfsTransitEncryption
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Name
+          Value: !Ref TaskDefinitionFamily
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  TaskDefinitionArn:
+    Description: ARN of the Task Definition
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionArn'
+
+  TaskDefinitionFamily:
+    Description: Task Definition Family Name
+    Value: !Ref TaskDefinitionFamily
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskDefinitionFamily'
+
+  TaskRoleArn:
+    Description: ARN of the Task Role
+    Value: !If
+      - CreateNewTaskRole
+      - !GetAtt TaskRole.Arn
+      - !If
+        - UseExistingTaskRole
+        - !Ref ExistingTaskRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-TaskRoleArn'
+
+  ExecutionRoleArn:
+    Description: ARN of the Execution Role
+    Value: !If
+      - CreateNewExecutionRole
+      - !GetAtt ExecutionRole.Arn
+      - !If
+        - UseExistingExecutionRole
+        - !Ref ExistingExecutionRoleArn
+        - 'N/A'
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
+
+  LogGroupName:
+    Condition: EnableLoggingCondition
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroupName
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
+
+  PrimaryContainerName:
+    Description: Primary Container Name
+    Value: !Ref Container1Name
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryContainerName'
+
+  PrimaryContainerPort:
+    Description: Primary Container Port
+    Value: !Ref Container1Port
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryContainerPort'
