@@ -43,8 +43,6 @@
     "ParameterKey": "Container1DependsOn",
     "ParameterValue": "aws-otel-collector"
   },
-
-  // 🔹 Container 2 (Already Public)
   {
     "ParameterKey": "EnableContainer2",
     "ParameterValue": "true"
@@ -65,8 +63,6 @@
     "ParameterKey": "Container2Command",
     "ParameterValue": "--config=/etc/ecs/ecs-cloudwatch-xray.yaml"
   },
-
-  // 🔹 Environment Variables (unchanged)
   {
     "ParameterKey": "Environment1Key",
     "ParameterValue": "database"
@@ -83,10 +79,6 @@
     "ParameterKey": "Environment2Value",
     "ParameterValue": "postgres"
   },
-  
- 
-
-  // 🔹 Logging
   {
     "ParameterKey": "EnableLogging",
     "ParameterValue": "true"
@@ -99,8 +91,6 @@
     "ParameterKey": "LogDriverMode",
     "ParameterValue": "non-blocking"
   },
-
-  // 🔹 Tags
   {
     "ParameterKey": "Environment",
     "ParameterValue": "perf"
