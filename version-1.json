@@ -27,8 +27,6 @@
     "ParameterKey": "ExistingTaskRoleArn",
     "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
   },
-
-  // 🔹 Container 1 (Public Test Image)
   {
     "ParameterKey": "Container1Name",
     "ParameterValue": "hapi-server"
