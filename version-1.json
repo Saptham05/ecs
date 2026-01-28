@@ -1,0 +1,114 @@
+[
+  {
+    "ParameterKey": "TaskDefinitionFamily",
+    "ParameterValue": "hapi-server-perf"
+  },
+  {
+    "ParameterKey": "TaskCpu",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "TaskMemory",
+    "ParameterValue": "2048"
+  },
+  {
+    "ParameterKey": "CreateExecutionRole",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "ExistingExecutionRoleArn",
+    "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
+  },
+  {
+    "ParameterKey": "CreateTaskRole",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "ExistingTaskRoleArn",
+    "ParameterValue": "arn:aws:iam::789406175361:role/ecsTaskExecutionRole"
+  },
+
+  // 🔹 Container 1 (Public Test Image)
+  {
+    "ParameterKey": "Container1Name",
+    "ParameterValue": "hapi-server"
+  },
+  {
+    "ParameterKey": "Container1Image",
+    "ParameterValue": "nginx:latest"
+  },
+  {
+    "ParameterKey": "Container1Port",
+    "ParameterValue": "80"
+  },
+  {
+    "ParameterKey": "Container1DependsOn",
+    "ParameterValue": "aws-otel-collector"
+  },
+
+  // 🔹 Container 2 (Already Public)
+  {
+    "ParameterKey": "EnableContainer2",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Container2Name",
+    "ParameterValue": "aws-otel-collector"
+  },
+  {
+    "ParameterKey": "Container2Image",
+    "ParameterValue": "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3"
+  },
+  {
+    "ParameterKey": "Container2Port",
+    "ParameterValue": "4318"
+  },
+  {
+    "ParameterKey": "Container2Command",
+    "ParameterValue": "--config=/etc/ecs/ecs-cloudwatch-xray.yaml"
+  },
+
+  // 🔹 Environment Variables (unchanged)
+  {
+    "ParameterKey": "Environment1Key",
+    "ParameterValue": "database"
+  },
+  {
+    "ParameterKey": "Environment1Value",
+    "ParameterValue": "hapi_perf"
+  },
+  {
+    "ParameterKey": "Environment2Key",
+    "ParameterValue": "postgresUser"
+  },
+  {
+    "ParameterKey": "Environment2Value",
+    "ParameterValue": "postgres"
+  },
+  
+ 
+
+  // 🔹 Logging
+  {
+    "ParameterKey": "EnableLogging",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "LogGroupName",
+    "ParameterValue": "/ecs/hapi-server-perf"
+  },
+  {
+    "ParameterKey": "LogDriverMode",
+    "ParameterValue": "non-blocking"
+  },
+
+  // 🔹 Tags
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "perf"
+  },
+  {
+    "ParameterKey": "Project",
+    "ParameterValue": "hapi"
+  }
+]
