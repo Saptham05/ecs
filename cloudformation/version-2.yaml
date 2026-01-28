@@ -1,0 +1,717 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Compact ECS Task Definition - 2 Containers, 40 Env Vars, 20 Secrets with Command Override'
+
+Parameters:
+  TaskDefinitionFamily:
+    Type: String
+    Description: Task definition family name
+    Default: my-app-task
+  LaunchType:
+    Type: String
+    Default: FARGATE
+    AllowedValues: [FARGATE, EC2, EXTERNAL]
+  TaskCpu:
+    Type: String
+    Default: '512'
+    AllowedValues: ['256', '512', '1024', '2048', '4096', '8192', '16384']
+  TaskMemory:
+    Type: String
+    Default: '1GB'
+  NetworkMode:
+    Type: String
+    Default: awsvpc
+    AllowedValues: [awsvpc, bridge, host, none]
+  OperatingSystem:
+    Type: String
+    Default: LINUX
+    AllowedValues: [LINUX, WINDOWS_SERVER_2019_FULL, WINDOWS_SERVER_2019_CORE, WINDOWS_SERVER_2022_FULL, WINDOWS_SERVER_2022_CORE]
+  CpuArchitecture:
+    Type: String
+    Default: X86_64
+    AllowedValues: [X86_64, ARM64]
+
+  # IAM Roles
+  CreateTaskRole:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  ExistingTaskRoleArn:
+    Type: String
+    Default: ''
+  CreateExecutionRole:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  ExistingExecutionRoleArn:
+    Type: String
+    Default: ''
+
+  # Container 1
+  Container1Name:
+    Type: String
+    Default: app-container
+  Container1Image:
+    Type: String
+    Default: nginx:latest
+  Container1Cpu:
+    Type: Number
+    Default: 256
+  Container1Memory:
+    Type: Number
+    Default: 512
+  Container1MemoryReservation:
+    Type: Number
+    Default: 256
+  Container1Essential:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  Container1Port:
+    Type: Number
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+  Container1Protocol:
+    Type: String
+    Default: tcp
+    AllowedValues: [tcp, udp]
+  Container1Command:
+    Type: String
+    Default: ''
+  Container1DependsOn:
+    Type: String
+    Default: ''
+
+  # Container 2
+  EnableContainer2:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  Container2Name:
+    Type: String
+    Default: container-2
+  Container2Image:
+    Type: String
+    Default: nginx:latest
+  Container2Cpu:
+    Type: Number
+    Default: 128
+  Container2Memory:
+    Type: Number
+    Default: 256
+  Container2MemoryReservation:
+    Type: Number
+    Default: 128
+  Container2Essential:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  Container2Port:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 65535
+  Container2Protocol:
+    Type: String
+    Default: tcp
+    AllowedValues: [tcp, udp]
+  Container2Command:
+    Type: String
+    Default: ''
+  Container2DependsOn:
+    Type: String
+    Default: ''
+
+  # Logging
+  EnableLogging:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  LogGroupName:
+    Type: String
+    Default: /ecs/my-app
+  LogStreamPrefix:
+    Type: String
+    Default: ecs
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+  LogDriverMode:
+    Type: String
+    Default: non-blocking
+    AllowedValues: [blocking, non-blocking]
+
+  # Health Check
+  EnableHealthCheck:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  HealthCheckCommand:
+    Type: String
+    Default: 'CMD-SHELL, curl -f http://localhost/ || exit 1'
+  HealthCheckInterval:
+    Type: Number
+    Default: 30
+  HealthCheckTimeout:
+    Type: Number
+    Default: 5
+  HealthCheckRetries:
+    Type: Number
+    Default: 3
+  HealthCheckStartPeriod:
+    Type: Number
+    Default: 0
+
+  # Environment Variables (40)
+  Env1Key: {Type: String, Default: ''}
+  Env1Value: {Type: String, Default: ''}
+  Env2Key: {Type: String, Default: ''}
+  Env2Value: {Type: String, Default: ''}
+  Env3Key: {Type: String, Default: ''}
+  Env3Value: {Type: String, Default: ''}
+  Env4Key: {Type: String, Default: ''}
+  Env4Value: {Type: String, Default: ''}
+  Env5Key: {Type: String, Default: ''}
+  Env5Value: {Type: String, Default: ''}
+  Env6Key: {Type: String, Default: ''}
+  Env6Value: {Type: String, Default: ''}
+  Env7Key: {Type: String, Default: ''}
+  Env7Value: {Type: String, Default: ''}
+  Env8Key: {Type: String, Default: ''}
+  Env8Value: {Type: String, Default: ''}
+  Env9Key: {Type: String, Default: ''}
+  Env9Value: {Type: String, Default: ''}
+  Env10Key: {Type: String, Default: ''}
+  Env10Value: {Type: String, Default: ''}
+  Env11Key: {Type: String, Default: ''}
+  Env11Value: {Type: String, Default: ''}
+  Env12Key: {Type: String, Default: ''}
+  Env12Value: {Type: String, Default: ''}
+  Env13Key: {Type: String, Default: ''}
+  Env13Value: {Type: String, Default: ''}
+  Env14Key: {Type: String, Default: ''}
+  Env14Value: {Type: String, Default: ''}
+  Env15Key: {Type: String, Default: ''}
+  Env15Value: {Type: String, Default: ''}
+  Env16Key: {Type: String, Default: ''}
+  Env16Value: {Type: String, Default: ''}
+  Env17Key: {Type: String, Default: ''}
+  Env17Value: {Type: String, Default: ''}
+  Env18Key: {Type: String, Default: ''}
+  Env18Value: {Type: String, Default: ''}
+  Env19Key: {Type: String, Default: ''}
+  Env19Value: {Type: String, Default: ''}
+  Env20Key: {Type: String, Default: ''}
+  Env20Value: {Type: String, Default: ''}
+  Env21Key: {Type: String, Default: ''}
+  Env21Value: {Type: String, Default: ''}
+  Env22Key: {Type: String, Default: ''}
+  Env22Value: {Type: String, Default: ''}
+  Env23Key: {Type: String, Default: ''}
+  Env23Value: {Type: String, Default: ''}
+  Env24Key: {Type: String, Default: ''}
+  Env24Value: {Type: String, Default: ''}
+  Env25Key: {Type: String, Default: ''}
+  Env25Value: {Type: String, Default: ''}
+  Env26Key: {Type: String, Default: ''}
+  Env26Value: {Type: String, Default: ''}
+  Env27Key: {Type: String, Default: ''}
+  Env27Value: {Type: String, Default: ''}
+  Env28Key: {Type: String, Default: ''}
+  Env28Value: {Type: String, Default: ''}
+  Env29Key: {Type: String, Default: ''}
+  Env29Value: {Type: String, Default: ''}
+  Env30Key: {Type: String, Default: ''}
+  Env30Value: {Type: String, Default: ''}
+  Env31Key: {Type: String, Default: ''}
+  Env31Value: {Type: String, Default: ''}
+  Env32Key: {Type: String, Default: ''}
+  Env32Value: {Type: String, Default: ''}
+  Env33Key: {Type: String, Default: ''}
+  Env33Value: {Type: String, Default: ''}
+  Env34Key: {Type: String, Default: ''}
+  Env34Value: {Type: String, Default: ''}
+  Env35Key: {Type: String, Default: ''}
+  Env35Value: {Type: String, Default: ''}
+  Env36Key: {Type: String, Default: ''}
+  Env36Value: {Type: String, Default: ''}
+  Env37Key: {Type: String, Default: ''}
+  Env37Value: {Type: String, Default: ''}
+  Env38Key: {Type: String, Default: ''}
+  Env38Value: {Type: String, Default: ''}
+  Env39Key: {Type: String, Default: ''}
+  Env39Value: {Type: String, Default: ''}
+  Env40Key: {Type: String, Default: ''}
+  Env40Value: {Type: String, Default: ''}
+
+  # Secrets (20)
+  Sec1Name: {Type: String, Default: ''}
+  Sec1ValueFrom: {Type: String, Default: ''}
+  Sec2Name: {Type: String, Default: ''}
+  Sec2ValueFrom: {Type: String, Default: ''}
+  Sec3Name: {Type: String, Default: ''}
+  Sec3ValueFrom: {Type: String, Default: ''}
+  Sec4Name: {Type: String, Default: ''}
+  Sec4ValueFrom: {Type: String, Default: ''}
+  Sec5Name: {Type: String, Default: ''}
+  Sec5ValueFrom: {Type: String, Default: ''}
+  Sec6Name: {Type: String, Default: ''}
+  Sec6ValueFrom: {Type: String, Default: ''}
+  Sec7Name: {Type: String, Default: ''}
+  Sec7ValueFrom: {Type: String, Default: ''}
+  Sec8Name: {Type: String, Default: ''}
+  Sec8ValueFrom: {Type: String, Default: ''}
+  Sec9Name: {Type: String, Default: ''}
+  Sec9ValueFrom: {Type: String, Default: ''}
+  Sec10Name: {Type: String, Default: ''}
+  Sec10ValueFrom: {Type: String, Default: ''}
+  Sec11Name: {Type: String, Default: ''}
+  Sec11ValueFrom: {Type: String, Default: ''}
+  Sec12Name: {Type: String, Default: ''}
+  Sec12ValueFrom: {Type: String, Default: ''}
+  Sec13Name: {Type: String, Default: ''}
+  Sec13ValueFrom: {Type: String, Default: ''}
+  Sec14Name: {Type: String, Default: ''}
+  Sec14ValueFrom: {Type: String, Default: ''}
+  Sec15Name: {Type: String, Default: ''}
+  Sec15ValueFrom: {Type: String, Default: ''}
+  Sec16Name: {Type: String, Default: ''}
+  Sec16ValueFrom: {Type: String, Default: ''}
+  Sec17Name: {Type: String, Default: ''}
+  Sec17ValueFrom: {Type: String, Default: ''}
+  Sec18Name: {Type: String, Default: ''}
+  Sec18ValueFrom: {Type: String, Default: ''}
+  Sec19Name: {Type: String, Default: ''}
+  Sec19ValueFrom: {Type: String, Default: ''}
+  Sec20Name: {Type: String, Default: ''}
+  Sec20ValueFrom: {Type: String, Default: ''}
+
+  # EFS
+  EnableEfsVolume:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  EfsVolumeId:
+    Type: String
+    Default: ''
+  EfsRootDirectory:
+    Type: String
+    Default: '/'
+  EfsMountPath:
+    Type: String
+    Default: '/mnt/efs'
+  EfsTransitEncryption:
+    Type: String
+    Default: ENABLED
+    AllowedValues: [ENABLED, DISABLED]
+
+  # Ephemeral Storage
+  EphemeralStorageSize:
+    Type: Number
+    Default: 21
+    MinValue: 20
+    MaxValue: 200
+
+  # Resource Limits
+  NoFileUlimitSoft:
+    Type: Number
+    Default: 65535
+  NoFileUlimitHard:
+    Type: Number
+    Default: 65535
+
+  # Tags
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues: [development, qa, staging, perf, production]
+  Project:
+    Type: String
+    Default: my-project
+  Owner:
+    Type: String
+    Default: platform-team
+
+Conditions:
+  CreateNewTaskRole: !Equals [!Ref CreateTaskRole, 'true']
+  CreateNewExecutionRole: !Equals [!Ref CreateExecutionRole, 'true']
+  UseExistingTaskRole: !Not [!Equals [!Ref ExistingTaskRoleArn, '']]
+  UseExistingExecutionRole: !Not [!Equals [!Ref ExistingExecutionRoleArn, '']]
+  EnableLoggingCondition: !Equals [!Ref EnableLogging, 'true']
+  EnableHealthCheckCondition: !Equals [!Ref EnableHealthCheck, 'true']
+  EnableContainer2Condition: !Equals [!Ref EnableContainer2, 'true']
+  Container1HasPort: !Not [!Equals [!Ref Container1Port, 0]]
+  Container2HasPort: !And [!Equals [!Ref EnableContainer2, 'true'], !Not [!Equals [!Ref Container2Port, 0]]]
+  Container1HasCommand: !Not [!Equals [!Ref Container1Command, '']]
+  Container2HasCommand: !Not [!Equals [!Ref Container2Command, '']]
+  Container1HasDependency: !Not [!Equals [!Ref Container1DependsOn, '']]
+  Container2HasDependency: !And [!Equals [!Ref EnableContainer2, 'true'], !Not [!Equals [!Ref Container2DependsOn, '']]]
+  AddEnv1: !Not [!Equals [!Ref Env1Key, '']]
+  AddEnv2: !Not [!Equals [!Ref Env2Key, '']]
+  AddEnv3: !Not [!Equals [!Ref Env3Key, '']]
+  AddEnv4: !Not [!Equals [!Ref Env4Key, '']]
+  AddEnv5: !Not [!Equals [!Ref Env5Key, '']]
+  AddEnv6: !Not [!Equals [!Ref Env6Key, '']]
+  AddEnv7: !Not [!Equals [!Ref Env7Key, '']]
+  AddEnv8: !Not [!Equals [!Ref Env8Key, '']]
+  AddEnv9: !Not [!Equals [!Ref Env9Key, '']]
+  AddEnv10: !Not [!Equals [!Ref Env10Key, '']]
+  AddEnv11: !Not [!Equals [!Ref Env11Key, '']]
+  AddEnv12: !Not [!Equals [!Ref Env12Key, '']]
+  AddEnv13: !Not [!Equals [!Ref Env13Key, '']]
+  AddEnv14: !Not [!Equals [!Ref Env14Key, '']]
+  AddEnv15: !Not [!Equals [!Ref Env15Key, '']]
+  AddEnv16: !Not [!Equals [!Ref Env16Key, '']]
+  AddEnv17: !Not [!Equals [!Ref Env17Key, '']]
+  AddEnv18: !Not [!Equals [!Ref Env18Key, '']]
+  AddEnv19: !Not [!Equals [!Ref Env19Key, '']]
+  AddEnv20: !Not [!Equals [!Ref Env20Key, '']]
+  AddEnv21: !Not [!Equals [!Ref Env21Key, '']]
+  AddEnv22: !Not [!Equals [!Ref Env22Key, '']]
+  AddEnv23: !Not [!Equals [!Ref Env23Key, '']]
+  AddEnv24: !Not [!Equals [!Ref Env24Key, '']]
+  AddEnv25: !Not [!Equals [!Ref Env25Key, '']]
+  AddEnv26: !Not [!Equals [!Ref Env26Key, '']]
+  AddEnv27: !Not [!Equals [!Ref Env27Key, '']]
+  AddEnv28: !Not [!Equals [!Ref Env28Key, '']]
+  AddEnv29: !Not [!Equals [!Ref Env29Key, '']]
+  AddEnv30: !Not [!Equals [!Ref Env30Key, '']]
+  AddEnv31: !Not [!Equals [!Ref Env31Key, '']]
+  AddEnv32: !Not [!Equals [!Ref Env32Key, '']]
+  AddEnv33: !Not [!Equals [!Ref Env33Key, '']]
+  AddEnv34: !Not [!Equals [!Ref Env34Key, '']]
+  AddEnv35: !Not [!Equals [!Ref Env35Key, '']]
+  AddEnv36: !Not [!Equals [!Ref Env36Key, '']]
+  AddEnv37: !Not [!Equals [!Ref Env37Key, '']]
+  AddEnv38: !Not [!Equals [!Ref Env38Key, '']]
+  AddEnv39: !Not [!Equals [!Ref Env39Key, '']]
+  AddEnv40: !Not [!Equals [!Ref Env40Key, '']]
+  AddSec1: !Not [!Equals [!Ref Sec1Name, '']]
+  AddSec2: !Not [!Equals [!Ref Sec2Name, '']]
+  AddSec3: !Not [!Equals [!Ref Sec3Name, '']]
+  AddSec4: !Not [!Equals [!Ref Sec4Name, '']]
+  AddSec5: !Not [!Equals [!Ref Sec5Name, '']]
+  AddSec6: !Not [!Equals [!Ref Sec6Name, '']]
+  AddSec7: !Not [!Equals [!Ref Sec7Name, '']]
+  AddSec8: !Not [!Equals [!Ref Sec8Name, '']]
+  AddSec9: !Not [!Equals [!Ref Sec9Name, '']]
+  AddSec10: !Not [!Equals [!Ref Sec10Name, '']]
+  AddSec11: !Not [!Equals [!Ref Sec11Name, '']]
+  AddSec12: !Not [!Equals [!Ref Sec12Name, '']]
+  AddSec13: !Not [!Equals [!Ref Sec13Name, '']]
+  AddSec14: !Not [!Equals [!Ref Sec14Name, '']]
+  AddSec15: !Not [!Equals [!Ref Sec15Name, '']]
+  AddSec16: !Not [!Equals [!Ref Sec16Name, '']]
+  AddSec17: !Not [!Equals [!Ref Sec17Name, '']]
+  AddSec18: !Not [!Equals [!Ref Sec18Name, '']]
+  AddSec19: !Not [!Equals [!Ref Sec19Name, '']]
+  AddSec20: !Not [!Equals [!Ref Sec20Name, '']]
+  EnableEfsVolumeCondition: !Equals [!Ref EnableEfsVolume, 'true']
+  IsFargate: !Equals [!Ref LaunchType, 'FARGATE']
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableLoggingCondition
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: !Ref LogRetentionDays
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewTaskRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-task-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: TaskRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket, dynamodb:GetItem, dynamodb:PutItem, dynamodb:Query, dynamodb:Scan]
+                Resource: '*'
+      Tags:
+        - {Key: Name, Value: !Sub '${TaskDefinitionFamily}-task-role'}
+        - {Key: Environment, Value: !Ref Environment}
+        - {Key: Project, Value: !Ref Project}
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNewExecutionRole
+    Properties:
+      RoleName: !Sub '${TaskDefinitionFamily}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken, ecr:BatchCheckLayerAvailability, ecr:GetDownloadUrlForLayer, ecr:BatchGetImage, logs:CreateLogStream, logs:PutLogEvents, logs:CreateLogGroup, secretsmanager:GetSecretValue, ssm:GetParameters, ssm:GetParameter]
+                Resource: '*'
+      Tags:
+        - {Key: Name, Value: !Sub '${TaskDefinitionFamily}-execution-role'}
+        - {Key: Environment, Value: !Ref Environment}
+        - {Key: Project, Value: !Ref Project}
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      RequiresCompatibilities: [!Ref LaunchType]
+      NetworkMode: !Ref NetworkMode
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      RuntimePlatform:
+        OperatingSystemFamily: !Ref OperatingSystem
+        CpuArchitecture: !Ref CpuArchitecture
+      TaskRoleArn: !If [CreateNewTaskRole, !GetAtt TaskRole.Arn, !If [UseExistingTaskRole, !Ref ExistingTaskRoleArn, !Ref AWS::NoValue]]
+      ExecutionRoleArn: !If [CreateNewExecutionRole, !GetAtt ExecutionRole.Arn, !If [UseExistingExecutionRole, !Ref ExistingExecutionRoleArn, !Ref AWS::NoValue]]
+      EphemeralStorage: !If [IsFargate, {SizeInGiB: !Ref EphemeralStorageSize}, !Ref AWS::NoValue]
+      ContainerDefinitions:
+        - Name: !Ref Container1Name
+          Image: !Ref Container1Image
+          Cpu: !Ref Container1Cpu
+          Memory: !Ref Container1Memory
+          MemoryReservation: !Ref Container1MemoryReservation
+          Essential: !Ref Container1Essential
+          PortMappings: !If [Container1HasPort, [{ContainerPort: !Ref Container1Port, Protocol: !Ref Container1Protocol, Name: !Sub '${Container1Name}-port'}], !Ref AWS::NoValue]
+          Environment: !If
+            - AddEnv1
+            - - !If [AddEnv1, {Name: !Ref Env1Key, Value: !Ref Env1Value}, !Ref AWS::NoValue]
+              - !If [AddEnv2, {Name: !Ref Env2Key, Value: !Ref Env2Value}, !Ref AWS::NoValue]
+              - !If [AddEnv3, {Name: !Ref Env3Key, Value: !Ref Env3Value}, !Ref AWS::NoValue]
+              - !If [AddEnv4, {Name: !Ref Env4Key, Value: !Ref Env4Value}, !Ref AWS::NoValue]
+              - !If [AddEnv5, {Name: !Ref Env5Key, Value: !Ref Env5Value}, !Ref AWS::NoValue]
+              - !If [AddEnv6, {Name: !Ref Env6Key, Value: !Ref Env6Value}, !Ref AWS::NoValue]
+              - !If [AddEnv7, {Name: !Ref Env7Key, Value: !Ref Env7Value}, !Ref AWS::NoValue]
+              - !If [AddEnv8, {Name: !Ref Env8Key, Value: !Ref Env8Value}, !Ref AWS::NoValue]
+              - !If [AddEnv9, {Name: !Ref Env9Key, Value: !Ref Env9Value}, !Ref AWS::NoValue]
+              - !If [AddEnv10, {Name: !Ref Env10Key, Value: !Ref Env10Value}, !Ref AWS::NoValue]
+              - !If [AddEnv11, {Name: !Ref Env11Key, Value: !Ref Env11Value}, !Ref AWS::NoValue]
+              - !If [AddEnv12, {Name: !Ref Env12Key, Value: !Ref Env12Value}, !Ref AWS::NoValue]
+              - !If [AddEnv13, {Name: !Ref Env13Key, Value: !Ref Env13Value}, !Ref AWS::NoValue]
+              - !If [AddEnv14, {Name: !Ref Env14Key, Value: !Ref Env14Value}, !Ref AWS::NoValue]
+              - !If [AddEnv15, {Name: !Ref Env15Key, Value: !Ref Env15Value}, !Ref AWS::NoValue]
+              - !If [AddEnv16, {Name: !Ref Env16Key, Value: !Ref Env16Value}, !Ref AWS::NoValue]
+              - !If [AddEnv17, {Name: !Ref Env17Key, Value: !Ref Env17Value}, !Ref AWS::NoValue]
+              - !If [AddEnv18, {Name: !Ref Env18Key, Value: !Ref Env18Value}, !Ref AWS::NoValue]
+              - !If [AddEnv19, {Name: !Ref Env19Key, Value: !Ref Env19Value}, !Ref AWS::NoValue]
+              - !If [AddEnv20, {Name: !Ref Env20Key, Value: !Ref Env20Value}, !Ref AWS::NoValue]
+              - !If [AddEnv21, {Name: !Ref Env21Key, Value: !Ref Env21Value}, !Ref AWS::NoValue]
+              - !If [AddEnv22, {Name: !Ref Env22Key, Value: !Ref Env22Value}, !Ref AWS::NoValue]
+              - !If [AddEnv23, {Name: !Ref Env23Key, Value: !Ref Env23Value}, !Ref AWS::NoValue]
+              - !If [AddEnv24, {Name: !Ref Env24Key, Value: !Ref Env24Value}, !Ref AWS::NoValue]
+              - !If [AddEnv25, {Name: !Ref Env25Key, Value: !Ref Env25Value}, !Ref AWS::NoValue]
+              - !If [AddEnv26, {Name: !Ref Env26Key, Value: !Ref Env26Value}, !Ref AWS::NoValue]
+              - !If [AddEnv27, {Name: !Ref Env27Key, Value: !Ref Env27Value}, !Ref AWS::NoValue]
+              - !If [AddEnv28, {Name: !Ref Env28Key, Value: !Ref Env28Value}, !Ref AWS::NoValue]
+              - !If [AddEnv29, {Name: !Ref Env29Key, Value: !Ref Env29Value}, !Ref AWS::NoValue]
+              - !If [AddEnv30, {Name: !Ref Env30Key, Value: !Ref Env30Value}, !Ref AWS::NoValue]
+              - !If [AddEnv31, {Name: !Ref Env31Key, Value: !Ref Env31Value}, !Ref AWS::NoValue]
+              - !If [AddEnv32, {Name: !Ref Env32Key, Value: !Ref Env32Value}, !Ref AWS::NoValue]
+              - !If [AddEnv33, {Name: !Ref Env33Key, Value: !Ref Env33Value}, !Ref AWS::NoValue]
+              - !If [AddEnv34, {Name: !Ref Env34Key, Value: !Ref Env34Value}, !Ref AWS::NoValue]
+              - !If [AddEnv35, {Name: !Ref Env35Key, Value: !Ref Env35Value}, !Ref AWS::NoValue]
+              - !If [AddEnv36, {Name: !Ref Env36Key, Value: !Ref Env36Value}, !Ref AWS::NoValue]
+              - !If [AddEnv37, {Name: !Ref Env37Key, Value: !Ref Env37Value}, !Ref AWS::NoValue]
+              - !If [AddEnv38, {Name: !Ref Env38Key, Value: !Ref Env38Value}, !Ref AWS::NoValue]
+              - !If [AddEnv39, {Name: !Ref Env39Key, Value: !Ref Env39Value}, !Ref AWS::NoValue]
+              - !If [AddEnv40, {Name: !Ref Env40Key, Value: !Ref Env40Value}, !Ref AWS::NoValue]
+            - !Ref AWS::NoValue
+          Secrets: !If
+            - AddSec1
+            - - !If [AddSec1, {Name: !Ref Sec1Name, ValueFrom: !Ref Sec1ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec2, {Name: !Ref Sec2Name, ValueFrom: !Ref Sec2ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec3, {Name: !Ref Sec3Name, ValueFrom: !Ref Sec3ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec4, {Name: !Ref Sec4Name, ValueFrom: !Ref Sec4ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec5, {Name: !Ref Sec5Name, ValueFrom: !Ref Sec5ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec6, {Name: !Ref Sec6Name, ValueFrom: !Ref Sec6ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec7, {Name: !Ref Sec7Name, ValueFrom: !Ref Sec7ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec8, {Name: !Ref Sec8Name, ValueFrom: !Ref Sec8ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec9, {Name: !Ref Sec9Name, ValueFrom: !Ref Sec9ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec10, {Name: !Ref Sec10Name, ValueFrom: !Ref Sec10ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec11, {Name: !Ref Sec11Name, ValueFrom: !Ref Sec11ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec12, {Name: !Ref Sec12Name, ValueFrom: !Ref Sec12ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec13, {Name: !Ref Sec13Name, ValueFrom: !Ref Sec13ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec14, {Name: !Ref Sec14Name, ValueFrom: !Ref Sec14ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec15, {Name: !Ref Sec15Name, ValueFrom: !Ref Sec15ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec16, {Name: !Ref Sec16Name, ValueFrom: !Ref Sec16ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec17, {Name: !Ref Sec17Name, ValueFrom: !Ref Sec17ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec18, {Name: !Ref Sec18Name, ValueFrom: !Ref Sec18ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec19, {Name: !Ref Sec19Name, ValueFrom: !Ref Sec19ValueFrom}, !Ref AWS::NoValue]
+              - !If [AddSec20, {Name: !Ref Sec20Name, ValueFrom: !Ref Sec20ValueFrom}, !Ref AWS::NoValue]
+            - !Ref AWS::NoValue
+          Command: !If [Container1HasCommand, !Split [',', !Ref Container1Command], !Ref AWS::NoValue]
+          DependsOn: !If [Container1HasDependency, [{ContainerName: !Ref Container1DependsOn, Condition: START}], !Ref AWS::NoValue]
+          HealthCheck: !If
+            - EnableHealthCheckCondition
+            - Command: !Split [',', !Ref HealthCheckCommand]
+              Interval: !Ref HealthCheckInterval
+              Timeout: !Ref HealthCheckTimeout
+              Retries: !Ref HealthCheckRetries
+              StartPeriod: !Ref HealthCheckStartPeriod
+            - !Ref AWS::NoValue
+          LogConfiguration: !If
+            - EnableLoggingCondition
+            - LogDriver: awslogs
+              Options:
+                awslogs-group: !Ref LogGroupName
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: !Ref LogStreamPrefix
+                mode: !Ref LogDriverMode
+                max-buffer-size: 25m
+            - !Ref AWS::NoValue
+          MountPoints: !If [EnableEfsVolumeCondition, [{SourceVolume: efs-volume, ContainerPath: !Ref EfsMountPath, ReadOnly: false}], !Ref AWS::NoValue]
+          Ulimits:
+            - {Name: nofile, SoftLimit: !Ref NoFileUlimitSoft, HardLimit: !Ref NoFileUlimitHard}
+          LinuxParameters:
+            InitProcessEnabled: true
+          DockerLabels:
+            com.example.environment: !Ref Environment
+            com.example.project: !Ref Project
+        - !If
+          - EnableContainer2Condition
+          - Name: !Ref Container2Name
+            Image: !Ref Container2Image
+            Cpu: !Ref Container2Cpu
+            Memory: !Ref Container2Memory
+            MemoryReservation: !Ref Container2MemoryReservation
+            Essential: !Ref Container2Essential
+            PortMappings: !If [Container2HasPort, [{ContainerPort: !Ref Container2Port, Protocol: !Ref Container2Protocol, Name: !Sub '${Container2Name}-port'}], !Ref AWS::NoValue]
+            Environment: !If
+              - AddEnv1
+              - - !If [AddEnv1, {Name: !Ref Env1Key, Value: !Ref Env1Value}, !Ref AWS::NoValue]
+                - !If [AddEnv2, {Name: !Ref Env2Key, Value: !Ref Env2Value}, !Ref AWS::NoValue]
+                - !If [AddEnv3, {Name: !Ref Env3Key, Value: !Ref Env3Value}, !Ref AWS::NoValue]
+                - !If [AddEnv4, {Name: !Ref Env4Key, Value: !Ref Env4Value}, !Ref AWS::NoValue]
+                - !If [AddEnv5, {Name: !Ref Env5Key, Value: !Ref Env5Value}, !Ref AWS::NoValue]
+                - !If [AddEnv6, {Name: !Ref Env6Key, Value: !Ref Env6Value}, !Ref AWS::NoValue]
+                - !If [AddEnv7, {Name: !Ref Env7Key, Value: !Ref Env7Value}, !Ref AWS::NoValue]
+                - !If [AddEnv8, {Name: !Ref Env8Key, Value: !Ref Env8Value}, !Ref AWS::NoValue]
+                - !If [AddEnv9, {Name: !Ref Env9Key, Value: !Ref Env9Value}, !Ref AWS::NoValue]
+                - !If [AddEnv10, {Name: !Ref Env10Key, Value: !Ref Env10Value}, !Ref AWS::NoValue]
+                - !If [AddEnv11, {Name: !Ref Env11Key, Value: !Ref Env11Value}, !Ref AWS::NoValue]
+                - !If [AddEnv12, {Name: !Ref Env12Key, Value: !Ref Env12Value}, !Ref AWS::NoValue]
+                - !If [AddEnv13, {Name: !Ref Env13Key, Value: !Ref Env13Value}, !Ref AWS::NoValue]
+                - !If [AddEnv14, {Name: !Ref Env14Key, Value: !Ref Env14Value}, !Ref AWS::NoValue]
+                - !If [AddEnv15, {Name: !Ref Env15Key, Value: !Ref Env15Value}, !Ref AWS::NoValue]
+                - !If [AddEnv16, {Name: !Ref Env16Key, Value: !Ref Env16Value}, !Ref AWS::NoValue]
+                - !If [AddEnv17, {Name: !Ref Env17Key, Value: !Ref Env17Value}, !Ref AWS::NoValue]
+                - !If [AddEnv18, {Name: !Ref Env18Key, Value: !Ref Env18Value}, !Ref AWS::NoValue]
+                - !If [AddEnv19, {Name: !Ref Env19Key, Value: !Ref Env19Value}, !Ref AWS::NoValue]
+                - !If [AddEnv20, {Name: !Ref Env20Key, Value: !Ref Env20Value}, !Ref AWS::NoValue]
+                - !If [AddEnv21, {Name: !Ref Env21Key, Value: !Ref Env21Value}, !Ref AWS::NoValue]
+                - !If [AddEnv22, {Name: !Ref Env22Key, Value: !Ref Env22Value}, !Ref AWS::NoValue]
+                - !If [AddEnv23, {Name: !Ref Env23Key, Value: !Ref Env23Value}, !Ref AWS::NoValue]
+                - !If [AddEnv24, {Name: !Ref Env24Key, Value: !Ref Env24Value}, !Ref AWS::NoValue]
+                - !If [AddEnv25, {Name: !Ref Env25Key, Value: !Ref Env25Value}, !Ref AWS::NoValue]
+                - !If [AddEnv26, {Name: !Ref Env26Key, Value: !Ref Env26Value}, !Ref AWS::NoValue]
+                - !If [AddEnv27, {Name: !Ref Env27Key, Value: !Ref Env27Value}, !Ref AWS::NoValue]
+                - !If [AddEnv28, {Name: !Ref Env28Key, Value: !Ref Env28Value}, !Ref AWS::NoValue]
+                - !If [AddEnv29, {Name: !Ref Env29Key, Value: !Ref Env29Value}, !Ref AWS::NoValue]
+                - !If [AddEnv30, {Name: !Ref Env30Key, Value: !Ref Env30Value}, !Ref AWS::NoValue]
+                - !If [AddEnv31, {Name: !Ref Env31Key, Value: !Ref Env31Value}, !Ref AWS::NoValue]
+                - !If [AddEnv32, {Name: !Ref Env32Key, Value: !Ref Env32Value}, !Ref AWS::NoValue]
+                - !If [AddEnv33, {Name: !Ref Env33Key, Value: !Ref Env33Value}, !Ref AWS::NoValue]
+                - !If [AddEnv34, {Name: !Ref Env34Key, Value: !Ref Env34Value}, !Ref AWS::NoValue]
+                - !If [AddEnv35, {Name: !Ref Env35Key, Value: !Ref Env35Value}, !Ref AWS::NoValue]
+                - !If [AddEnv36, {Name: !Ref Env36Key, Value: !Ref Env36Value}, !Ref AWS::NoValue]
+                - !If [AddEnv37, {Name: !Ref Env37Key, Value: !Ref Env37Value}, !Ref AWS::NoValue]
+                - !If [AddEnv38, {Name: !Ref Env38Key, Value: !Ref Env38Value}, !Ref AWS::NoValue]
+                - !If [AddEnv39, {Name: !Ref Env39Key, Value: !Ref Env39Value}, !Ref AWS::NoValue]
+                - !If [AddEnv40, {Name: !Ref Env40Key, Value: !Ref Env40Value}, !Ref AWS::NoValue]
+              - !Ref AWS::NoValue
+            Secrets: !If
+              - AddSec1
+              - - !If [AddSec1, {Name: !Ref Sec1Name, ValueFrom: !Ref Sec1ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec2, {Name: !Ref Sec2Name, ValueFrom: !Ref Sec2ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec3, {Name: !Ref Sec3Name, ValueFrom: !Ref Sec3ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec4, {Name: !Ref Sec4Name, ValueFrom: !Ref Sec4ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec5, {Name: !Ref Sec5Name, ValueFrom: !Ref Sec5ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec6, {Name: !Ref Sec6Name, ValueFrom: !Ref Sec6ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec7, {Name: !Ref Sec7Name, ValueFrom: !Ref Sec7ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec8, {Name: !Ref Sec8Name, ValueFrom: !Ref Sec8ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec9, {Name: !Ref Sec9Name, ValueFrom: !Ref Sec9ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec10, {Name: !Ref Sec10Name, ValueFrom: !Ref Sec10ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec11, {Name: !Ref Sec11Name, ValueFrom: !Ref Sec11ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec12, {Name: !Ref Sec12Name, ValueFrom: !Ref Sec12ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec13, {Name: !Ref Sec13Name, ValueFrom: !Ref Sec13ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec14, {Name: !Ref Sec14Name, ValueFrom: !Ref Sec14ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec15, {Name: !Ref Sec15Name, ValueFrom: !Ref Sec15ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec16, {Name: !Ref Sec16Name, ValueFrom: !Ref Sec16ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec17, {Name: !Ref Sec17Name, ValueFrom: !Ref Sec17ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec18, {Name: !Ref Sec18Name, ValueFrom: !Ref Sec18ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec19, {Name: !Ref Sec19Name, ValueFrom: !Ref Sec19ValueFrom}, !Ref AWS::NoValue]
+                - !If [AddSec20, {Name: !Ref Sec20Name, ValueFrom: !Ref Sec20ValueFrom}, !Ref AWS::NoValue]
+              - !Ref AWS::NoValue
+            Command: !If [Container2HasCommand, !Split [',', !Ref Container2Command], !Ref AWS::NoValue]
+            LogConfiguration: !If
+              - EnableLoggingCondition
+              - LogDriver: awslogs
+                Options:
+                  awslogs-group: !Ref LogGroupName
+                  awslogs-region: !Ref AWS::Region
+                  awslogs-stream-prefix: !Sub '${LogStreamPrefix}-container2'
+                  mode: !Ref LogDriverMode
+                  max-buffer-size: 25m
+              - !Ref AWS::NoValue
+            MountPoints: !If [EnableEfsVolumeCondition, [{SourceVolume: efs-volume, ContainerPath: !Ref EfsMountPath, ReadOnly: false}], !Ref AWS::NoValue]
+            DependsOn: !If [Container2HasDependency, [{ContainerName: !Ref Container2DependsOn, Condition: START}], !Ref AWS::NoValue]
+            LinuxParameters:
+              InitProcessEnabled: true
+          - !Ref AWS::NoValue
+      Volumes: !If [EnableEfsVolumeCondition, [{Name: efs-volume, EFSVolumeConfiguration: {FilesystemId: !Ref EfsVolumeId, RootDirectory: !Ref EfsRootDirectory, TransitEncryption: !Ref EfsTransitEncryption}}], !Ref AWS::NoValue]
+      Tags:
+        - {Key: Name, Value: !Ref TaskDefinitionFamily}
+        - {Key: Environment, Value: !Ref Environment}
+        - {Key: Project, Value: !Ref Project}
+        - {Key: Owner, Value: !Ref Owner}
+
+Outputs:
+  TaskDefinitionArn:
+    Value: !Ref TaskDefinition
+    Export: {Name: !Sub '${AWS::StackName}-TaskDefinitionArn'}
+  TaskDefinitionFamily:
+    Value: !Ref TaskDefinitionFamily
+    Export: {Name: !Sub '${AWS::StackName}-TaskDefinitionFamily'}
+  TaskRoleArn:
+    Value: !If [CreateNewTaskRole, !GetAtt TaskRole.Arn, !If [UseExistingTaskRole, !Ref ExistingTaskRoleArn, 'N/A']]
+    Export: {Name: !Sub '${AWS::StackName}-TaskRoleArn'}
+  ExecutionRoleArn:
+    Value: !If [CreateNewExecutionRole, !GetAtt ExecutionRole.Arn, !If [UseExistingExecutionRole, !Ref ExistingExecutionRoleArn, 'N/A']]
+    Export: {Name: !Sub '${AWS::StackName}-ExecutionRoleArn'}
+  LogGroupName:
+    Condition: EnableLoggingCondition
+    Value: !Ref LogGroupName
+    Export: {Name: !Sub '${AWS::StackName}-LogGroupName'}
+  Container1Name:
+    Value: !Ref Container1Name
+    Export: {Name: !Sub '${AWS::StackName}-Container1Name'}
+  Container1Port:
+    Value: !Ref Container1Port
+    Export: {Name: !Sub '${AWS::StackName}-Container1Port'}
+  Container2Name:
+    Condition: EnableContainer2Condition
+    Value: !Ref Container2Name
+    Export: {Name: !Sub '${AWS::StackName}-Container2Name'}
+  Container2Port:
+    Condition: Container2HasPort
+    Value: !Ref Container2Port
+    Export: {Name: !Sub '${AWS::StackName}-Container2Port'}
