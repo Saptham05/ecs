@@ -40,28 +40,28 @@
     "ParameterValue": "80"
   },
   {
-    "ParameterKey": "Container1DependsOn",
-    "ParameterValue": "aws-otel-collector"
-  },
-  {
-    "ParameterKey": "EnableContainer2",
+    "ParameterKey": "EnableSidecar",
     "ParameterValue": "true"
   },
   {
-    "ParameterKey": "Container2Name",
+    "ParameterKey": "SidecarName",
     "ParameterValue": "aws-otel-collector"
   },
   {
-    "ParameterKey": "Container2Image",
+    "ParameterKey": "SidecarImage",
     "ParameterValue": "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3"
   },
   {
-    "ParameterKey": "Container2Port",
+    "ParameterKey": "SidecarPort1",
     "ParameterValue": "4318"
   },
   {
-    "ParameterKey": "Container2Command",
+    "ParameterKey": "SidecarCommand",
     "ParameterValue": "--config=/etc/ecs/ecs-cloudwatch-xray.yaml"
+  },
+  {
+    "ParameterKey": "SidecarDependsOnCondition",
+    "ParameterValue": "START"
   },
   {
     "ParameterKey": "Environment1Key",
